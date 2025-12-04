@@ -3,19 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎵 Оркестр для РАС-дитини</title>
+    <title>🎵 Терапевтичний оркестр для РАС</title>
     
-    <!-- MediaPipe з локального CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js"></script>
+    <!-- Бібліотеки -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
-            font-family: 'Arial Rounded MT Bold', 'Comic Sans MS', sans-serif;
+            font-family: 'Arial', sans-serif;
             background: linear-gradient(135deg, #1a237e 0%, #4a148c 100%);
             color: white;
             height: 100vh;
@@ -24,7 +23,7 @@
             touch-action: none;
         }
         
-        #cameraContainer {
+        .video-container {
             position: fixed;
             top: 0;
             left: 0;
@@ -51,43 +50,41 @@
             pointer-events: none;
         }
         
-        .ui-panel {
+        /* Інтерфейс */
+        .header {
             position: fixed;
             top: 20px;
             left: 20px;
             right: 20px;
             z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
+            text-align: center;
         }
         
         .title {
             background: rgba(255, 64, 129, 0.9);
             padding: 15px 25px;
             border-radius: 50px;
-            text-align: center;
             font-size: 24px;
             border: 3px solid white;
             box-shadow: 0 5px 20px rgba(255, 64, 129, 0.5);
             backdrop-filter: blur(10px);
+            margin-bottom: 10px;
         }
         
-        .status-panel {
+        .status {
             background: rgba(33, 150, 243, 0.9);
-            padding: 15px 25px;
+            padding: 12px 20px;
             border-radius: 30px;
             border: 3px solid white;
             backdrop-filter: blur(10px);
-            min-height: 60px;
+            font-size: 18px;
+            min-height: 50px;
             display: flex;
             align-items: center;
             justify-content: center;
-            text-align: center;
-            font-size: 20px;
         }
         
-        .instrument-panel {
+        .instruments {
             position: fixed;
             bottom: 120px;
             left: 20px;
@@ -102,35 +99,29 @@
             background: rgba(255, 193, 7, 0.9);
             border: 3px solid white;
             color: #1a237e;
-            padding: 15px 10px;
-            border-radius: 25px;
-            font-size: 16px;
+            padding: 12px 8px;
+            border-radius: 20px;
+            font-size: 14px;
             cursor: pointer;
             font-weight: bold;
             text-align: center;
             transition: all 0.3s;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-        }
-        
-        .instrument-btn:hover {
-            transform: translateY(-5px);
         }
         
         .instrument-btn.active {
             background: #4CAF50;
             color: white;
             transform: scale(1.05);
-            box-shadow: 0 0 25px #4CAF50;
         }
         
-        .control-panel {
+        .controls {
             position: fixed;
             bottom: 20px;
             left: 20px;
             right: 20px;
             display: flex;
             justify-content: center;
-            gap: 15px;
+            gap: 10px;
             z-index: 1000;
         }
         
@@ -138,35 +129,33 @@
             background: rgba(76, 175, 80, 0.9);
             border: 2px solid white;
             color: white;
-            padding: 12px 20px;
-            border-radius: 25px;
-            font-size: 16px;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 14px;
             cursor: pointer;
             font-weight: bold;
-            min-width: 140px;
+            min-width: 100px;
         }
         
-        .finger-guide {
+        .finger-display {
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 80px;
+            font-size: 60px;
             z-index: 3;
             opacity: 0.5;
-            animation: pulse 2s infinite;
             pointer-events: none;
         }
         
-        .finger-counter {
+        .counter {
             position: fixed;
             bottom: 200px;
             left: 0;
             right: 0;
             text-align: center;
-            font-size: 40px;
+            font-size: 30px;
             color: #FFEB3B;
-            text-shadow: 0 0 20px #FF9800;
             z-index: 1000;
         }
         
@@ -184,319 +173,119 @@
             text-align: center;
         }
         
-        .loading-dots {
-            display: flex;
-            gap: 10px;
-            margin-top: 20px;
-            justify-content: center;
-        }
-        
-        .dot {
-            width: 20px;
-            height: 20px;
-            background: #4CAF50;
-            border-radius: 50%;
-            animation: bounce 1.4s infinite;
-        }
-        
-        .dot:nth-child(2) { animation-delay: 0.2s; }
-        .dot:nth-child(3) { animation-delay: 0.4s; }
-        
-        @keyframes pulse {
-            0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.3; }
-            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.7; }
-        }
-        
-        @keyframes bounce {
-            0%, 80%, 100% { transform: scale(0); }
-            40% { transform: scale(1); }
-        }
-        
-        .debug-info {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: rgba(0,0,0,0.7);
-            color: #4CAF50;
-            padding: 10px;
-            border-radius: 10px;
-            font-size: 12px;
-            font-family: monospace;
-            z-index: 1000;
-            display: none;
-        }
-        
-        .combo-display {
-            position: fixed;
-            top: 120px;
-            left: 0;
-            right: 0;
-            text-align: center;
-            font-size: 24px;
-            color: #FF4081;
-            z-index: 1000;
-            background: rgba(0,0,0,0.7);
-            padding: 10px;
-            border-radius: 20px;
-            margin: 0 20px;
-        }
-        
         @media (max-width: 768px) {
             .title { font-size: 18px; padding: 12px 20px; }
-            .status-panel { font-size: 16px; padding: 12px 20px; }
-            .instrument-btn { font-size: 14px; padding: 12px 8px; }
-            .control-btn { font-size: 14px; padding: 10px 15px; min-width: 120px; }
-            .finger-counter { font-size: 30px; bottom: 180px; }
-        }
-        
-        @media (max-height: 700px) {
-            .instrument-panel { bottom: 100px; }
-            .finger-counter { bottom: 170px; }
+            .status { font-size: 16px; padding: 10px 15px; }
+            .instrument-btn { font-size: 12px; padding: 10px 5px; }
+            .control-btn { font-size: 12px; padding: 8px 12px; min-width: 80px; }
+            .counter { font-size: 24px; bottom: 180px; }
+            .finger-display { font-size: 50px; }
         }
     </style>
 </head>
 <body>
-    <!-- ЗАВАНТАЖЕННЯ -->
-    <div class="loading" id="loadingScreen">
+    <!-- Завантаження -->
+    <div class="loading" id="loading">
         <div>
-            <div style="font-size: 60px;">👋🎵</div>
-            <h1 style="color: #FFEB3B; margin: 20px 0;">Оркестр для розвитку моторики</h1>
-            <div style="font-size: 18px; margin-bottom: 20px;">Покажи пальчики камері!</div>
-            <div class="loading-dots">
-                <div class="dot"></div>
-                <div class="dot"></div>
-                <div class="dot"></div>
-            </div>
+            <div style="font-size: 60px;">🎵</div>
+            <h1 style="color: #FFEB3B; margin: 20px 0;">Терапевтичний оркестр</h1>
+            <div>Готуємо інструменти...</div>
         </div>
     </div>
 
-    <!-- ІНТЕРФЕЙС -->
-    <div class="ui-panel">
-        <div class="title">🎵 ТЕРАПЕВТИЧНИЙ ОРКЕСТР ДЛЯ РОЗВИТКУ МОТОРИКИ 🎵</div>
-        <div class="status-panel" id="statusPanel">
-            Покажи долоню камері для початку...
-        </div>
+    <!-- Інтерфейс -->
+    <div class="header">
+        <div class="title">🎵 РОЗВИТОК МОТОРИКИ ЧЕРЕЗ МУЗИКУ 🎵</div>
+        <div class="status" id="status">Торкніться екрану для початку</div>
     </div>
     
-    <div class="combo-display" id="comboDisplay">
-        Комбінації: <span id="comboCount">0</span>
-    </div>
+    <div class="finger-display" id="fingerDisplay">👋</div>
     
-    <div class="finger-guide" id="fingerGuide">👋</div>
-    
-    <div class="finger-counter" id="fingerCounter">
+    <div class="counter" id="counter">
         Пальців: <span id="fingerCount">0</span>
     </div>
 
-    <div class="instrument-panel">
-        <button class="instrument-btn active" onclick="switchInstrument('piano')">🎹 Мелодія</button>
-        <button class="instrument-btn" onclick="switchInstrument('drums')">🥁 Ритм</button>
-        <button class="instrument-btn" onclick="switchInstrument('bells')">🔔 Дзвін</button>
-        <button class="instrument-btn" onclick="switchInstrument('animals')">🐶 Звірі</button>
-        <button class="instrument-btn" onclick="switchInstrument('nature')">🌊 Природа</button>
-        <button class="instrument-btn" onclick="switchInstrument('synth')">🌟 Синт</button>
+    <div class="instruments">
+        <button class="instrument-btn active" onclick="switchInstrument('piano')">🎹 Ноти</button>
+        <button class="instrument-btn" onclick="switchInstrument('drums')">🥁 Барабани</button>
+        <button class="instrument-btn" onclick="switchInstrument('bells')">🔔 Дзвіночки</button>
+        <button class="instrument-btn" onclick="switchInstrument('synth')">🎛️ Синтезатор</button>
+        <button class="instrument-btn" onclick="switchInstrument('nature')">🌿 Природа</button>
+        <button class="instrument-btn" onclick="switchInstrument('animals')">🐾 Звірі</button>
     </div>
 
-    <div class="control-panel">
-        <button class="control-btn" onclick="toggleCamera()">📷 Камера</button>
-        <button class="control-btn" onclick="toggleMute()">🔊 Звук</button>
-        <button class="control-btn" onclick="showInstructions()">❓ Допомога</button>
+    <div class="controls">
+        <button class="control-btn" onclick="startAudio()">🔊 Увімк. звук</button>
+        <button class="control-btn" onclick="showHelp()">❓ Допомога</button>
+        <button class="control-btn" onclick="toggleDebug()">🐛 Налагодження</button>
     </div>
 
-    <!-- ДЛЯ НАЛАГОДЖЕННЯ -->
-    <div class="debug-info" id="debugInfo"></div>
-
-    <!-- КАМЕРА ТА 3D -->
-    <div id="cameraContainer">
+    <!-- Відео та 3D -->
+    <div class="video-container">
         <video id="cameraView" autoplay playsinline muted></video>
     </div>
     <canvas id="canvas3d"></canvas>
 
     <script>
-        // ========== КОНСТАНТИ ДЛЯ РАС ==========
+        // ========== КОНСТАНТИ ==========
         const CONFIG = {
             VOLUME: 0.3,
-            FINGER_THRESHOLD: 0.05,
-            COMBO_TIME: 2000,
-            GESTURE_HOLD_TIME: 1000,
-            SMOOTHING: 0.7
+            NOTES: ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', 'C4'],
+            FINGER_NAMES: ['Великий', 'Вказівний', 'Середній', 'Безіменний', 'Мізинець'],
+            COLORS: [0xFF4081, 0x4CAF50, 0x2196F3, 0xFFEB3B, 0x9C27B0]
         };
 
-        // ========== СИСТЕМНІ ЗМІННІ ==========
+        // ========== ЗМІННІ ==========
         let scene, camera, renderer;
-        let hands;
+        let hands = null;
         let currentInstrument = 'piano';
-        let isMuted = false;
-        let isCameraOn = true;
-        let comboCount = 0;
-        let lastComboTime = 0;
-        
-        // Трекінг стану
-        let handState = {
-            raisedFingers: [],
-            lastFingers: [],
-            gestureStart: 0,
-            currentGesture: null
-        };
-        
-        // Аудіо інструменти
-        let audioContext;
-        let instruments = {};
-        let visualObjects = [];
-        
-        // DOM елементи
-        const elements = {
-            loading: document.getElementById('loadingScreen'),
-            statusPanel: document.getElementById('statusPanel'),
-            fingerGuide: document.getElementById('fingerGuide'),
-            fingerCounter: document.getElementById('fingerCounter'),
-            fingerCount: document.getElementById('fingerCount'),
-            comboDisplay: document.getElementById('comboDisplay'),
-            comboCount: document.getElementById('comboCount'),
-            debugInfo: document.getElementById('debugInfo'),
-            cameraView: document.getElementById('cameraView'),
-            canvas3d: document.getElementById('canvas3d'),
-            cameraContainer: document.getElementById('cameraContainer')
-        };
+        let audioStarted = false;
+        let synth, drums, bells, natureSynth, animalSynth;
+        let activeFingers = [];
+        let fingerObjects = [];
+        let debugMode = false;
 
-        // ========== КОМБІНАЦІЇ ПАЛЬЦІВ ==========
-        const FINGER_COMBOS = {
-            // Прості комбінації (1-2 пальці)
-            'thumb': { notes: ['C3'], name: 'Великий', color: 0xFF4081 },
-            'index': { notes: ['D3'], name: 'Вказівний', color: 0x4CAF50 },
-            'middle': { notes: ['E3'], name: 'Середній', color: 0x2196F3 },
-            'ring': { notes: ['F3'], name: 'Безіменний', color: 0xFFEB3B },
-            'pinky': { notes: ['G3'], name: 'Мізинець', color: 0x9C27B0 },
-            
-            // Дво-пальцеві комбінації
-            'thumb+index': { notes: ['C3', 'D3'], name: 'OK 👌', color: 0xFF9800 },
-            'index+middle': { notes: ['D3', 'E3'], name: 'Мир ✌️', color: 0x00BCD4 },
-            'middle+ring': { notes: ['E3', 'F3'], name: 'Рога 🤘', color: 0xE91E63 },
-            'all': { notes: ['C3', 'D3', 'E3', 'F3', 'G3'], name: 'Всі пальці 🖐️', color: 0x8BC34A }
+        // Елементи DOM
+        const elements = {
+            loading: document.getElementById('loading'),
+            status: document.getElementById('status'),
+            fingerDisplay: document.getElementById('fingerDisplay'),
+            fingerCount: document.getElementById('fingerCount'),
+            counter: document.getElementById('counter'),
+            cameraView: document.getElementById('cameraView'),
+            canvas3d: document.getElementById('canvas3d')
         };
 
         // ========== ІНІЦІАЛІЗАЦІЯ ==========
         async function init() {
+            // Ініціалізуємо Three.js
+            initThreeJS();
+            
+            // Ініціалізуємо аудіо (чекаємо кліку)
+            initAudio();
+            
+            // Намагаємося ініціалізувати трекінг рук
             try {
-                // Спочатку аудіо (чекаємо кліку)
-                await initAudio();
-                
-                // Потім графіка
-                initThreeJS();
-                
-                // І трекінг рук
                 await initHandTracking();
-                
-                // Показуємо інструкції
-                showWelcomeMessage();
-                
             } catch (error) {
-                console.error("Помилка ініціалізації:", error);
-                showError("Помилка запуску", "Спробуйте оновити сторінку або перевірте камеру.");
+                console.log("Трекінг не працює, використовуємо торкання");
+                initTouchControls();
             }
+            
+            // Сховати завантаження
+            setTimeout(() => {
+                elements.loading.style.opacity = '0';
+                setTimeout(() => {
+                    elements.loading.style.display = 'none';
+                    updateStatus("Покажи пальчики камері або торкнися екрану");
+                }, 500);
+            }, 1000);
         }
 
-        // ========== АУДІО СИСТЕМА ==========
-        async function initAudio() {
-            return new Promise((resolve) => {
-                const startAudio = async () => {
-                    try {
-                        // Створюємо AudioContext після кліку
-                        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                        
-                        // Чекаємо готовності
-                        if (audioContext.state === 'suspended') {
-                            await audioContext.resume();
-                        }
-                        
-                        // Ініціалізуємо Tone.js
-                        await Tone.start();
-                        Tone.setContext(audioContext);
-                        
-                        // Створюємо інструменти
-                        createInstruments();
-                        
-                        console.log("Аудіо система готова");
-                        updateStatus("Торкніться екрану для звуку 👆");
-                        resolve();
-                        
-                    } catch (error) {
-                        console.warn("Аудіо помилка:", error);
-                        // Все одно продовжуємо без звуку
-                        resolve();
-                    }
-                };
-                
-                // Старт по кліку або торканню
-                document.addEventListener('click', startAudio, { once: true });
-                document.addEventListener('touchstart', startAudio, { once: true });
-                
-                // Показуємо підказку
-                updateStatus("👆 Торкніться екрану для увімкнення звуку");
-            });
-        }
-
-        function createInstruments() {
-            // Мережевий вихід
-            const masterGain = new Tone.Gain(CONFIG.VOLUME).toDestination();
-            
-            // 1. Фортепіано (синтезатор)
-            instruments.piano = new Tone.PolySynth(Tone.Synth, {
-                oscillator: { type: "sine" },
-                envelope: {
-                    attack: 0.01,
-                    decay: 0.1,
-                    sustain: 0.3,
-                    release: 0.5
-                }
-            }).connect(masterGain);
-            
-            // 2. Барабани (шумовий синтезатор)
-            instruments.drums = new Tone.NoiseSynth({
-                noise: { type: "white" },
-                envelope: {
-                    attack: 0.001,
-                    decay: 0.1,
-                    sustain: 0
-                }
-            }).connect(masterGain);
-            
-            // 3. Дзвіночки (FM синтезатор)
-            instruments.bells = new Tone.PolySynth(Tone.FMSynth, {
-                harmonicity: 8,
-                modulationIndex: 2,
-                oscillator: { type: "sine" },
-                envelope: {
-                    attack: 0.01,
-                    decay: 0.2,
-                    sustain: 0.2,
-                    release: 1.5
-                }
-            }).connect(masterGain);
-            
-            // 4. Синтезатор (для різних ефектів)
-            instruments.synth = new Tone.PolySynth(Tone.AMSynth).connect(masterGain);
-            
-            // 5. Животні (спеціальні звуки)
-            instruments.animals = new Tone.MembraneSynth().connect(masterGain);
-            
-            // 6. Природа (плавні звуки)
-            instruments.nature = new Tone.PolySynth(Tone.Synth, {
-                oscillator: { type: "sine" },
-                envelope: {
-                    attack: 0.5,
-                    decay: 0.5,
-                    sustain: 0.3,
-                    release: 2
-                }
-            }).connect(masterGain);
-        }
-
-        // ========== THREE.JS СЦЕНА ==========
+        // ========== THREE.JS ==========
         function initThreeJS() {
             // Сцена
             scene = new THREE.Scene();
-            scene.fog = new THREE.Fog(0x1a237e, 1, 10);
             
             // Камера
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
@@ -519,79 +308,110 @@
             directionalLight.position.set(5, 10, 7);
             scene.add(directionalLight);
             
-            // Створюємо фон з частинок
-            createBackgroundParticles();
-            
             // Анімація
+            function animate() {
+                requestAnimationFrame(animate);
+                renderer.render(scene, camera);
+            }
             animate();
         }
 
-        function createBackgroundParticles() {
-            const particleCount = 200;
-            const geometry = new THREE.BufferGeometry();
-            const positions = new Float32Array(particleCount * 3);
-            
-            for (let i = 0; i < particleCount * 3; i += 3) {
-                positions[i] = (Math.random() - 0.5) * 20;
-                positions[i + 1] = (Math.random() - 0.5) * 20;
-                positions[i + 2] = (Math.random() - 0.5) * 20;
-            }
-            
-            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            
-            const material = new THREE.PointsMaterial({
-                size: 0.1,
-                color: 0x4CAF50,
-                transparent: true,
-                opacity: 0.5
-            });
-            
-            const particles = new THREE.Points(geometry, material);
-            scene.add(particles);
-            visualObjects.push(particles);
+        // ========== АУДІО ==========
+        function initAudio() {
+            // Створюємо інструменти, але не запускаємо
+            createAudioInstruments();
         }
 
-        // ========== MEDIAPIPE ТРЕКІНГ ==========
-        async function initHandTracking() {
-            updateStatus("Завантажуємо трекінг рук...");
+        function createAudioInstruments() {
+            // Загальний вихід
+            const output = new Tone.Gain(CONFIG.VOLUME).toDestination();
             
-            try {
-                // Ініціалізація MediaPipe Hands
-                hands = new Hands({
-                    locateFile: (file) => {
-                        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
-                    }
-                });
-                
-                // Налаштування
-                hands.setOptions({
-                    maxNumHands: 2,
-                    modelComplexity: 0, // Нижча складність для продуктивності
-                    minDetectionConfidence: 0.5,
-                    minTrackingConfidence: 0.5
-                });
-                
-                // Обробник результатів
-                hands.onResults(onHandResults);
-                
-                // Запуск камери
-                await startCamera();
-                
-                updateStatus("Покажи долоню камері 🖐️");
-                
-            } catch (error) {
-                console.warn("Помилка трекінгу:", error);
-                updateStatus("Трекінг не працює. Торкайтеся екрану 👇");
-                enableTouchMode();
-            }
+            // Фортепіано
+            synth = new Tone.PolySynth(Tone.Synth, {
+                oscillator: { type: "sine" },
+                envelope: {
+                    attack: 0.01,
+                    decay: 0.1,
+                    sustain: 0.3,
+                    release: 0.5
+                }
+            }).connect(output);
+            
+            // Барабани
+            drums = new Tone.NoiseSynth({
+                noise: { type: "white" },
+                envelope: {
+                    attack: 0.001,
+                    decay: 0.1,
+                    sustain: 0
+                }
+            }).connect(output);
+            
+            // Дзвіночки
+            bells = new Tone.PolySynth(Tone.FMSynth, {
+                harmonicity: 8,
+                modulationIndex: 2,
+                oscillator: { type: "sine" }
+            }).connect(output);
+            
+            // Природа
+            natureSynth = new Tone.PolySynth(Tone.Synth, {
+                oscillator: { type: "sine" },
+                envelope: {
+                    attack: 0.5,
+                    decay: 0.5,
+                    sustain: 0.3,
+                    release: 2
+                }
+            }).connect(output);
+            
+            // Тварини
+            animalSynth = new Tone.MembraneSynth().connect(output);
+        }
+
+        function startAudio() {
+            if (audioStarted) return;
+            
+            Tone.start().then(() => {
+                audioStarted = true;
+                updateStatus("Звук увімкнено! Покажи пальчики камері");
+                elements.status.style.background = "rgba(76, 175, 80, 0.9)";
+            }).catch(error => {
+                updateStatus("Не вдалося увімкнути звук");
+                console.error("Audio error:", error);
+            });
+        }
+
+        // ========== ТРЕКІНГ РУК ==========
+        async function initHandTracking() {
+            return new Promise((resolve, reject) => {
+                try {
+                    hands = new Hands({
+                        locateFile: (file) => {
+                            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+                        }
+                    });
+                    
+                    hands.setOptions({
+                        maxNumHands: 1,
+                        modelComplexity: 0,
+                        minDetectionConfidence: 0.5,
+                        minTrackingConfidence: 0.5
+                    });
+                    
+                    hands.onResults(onHandResults);
+                    
+                    // Запускаємо камеру
+                    startCamera().then(resolve).catch(reject);
+                    
+                } catch (error) {
+                    reject(error);
+                }
+            });
         }
 
         async function startCamera() {
             try {
-                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    throw new Error("Камера не підтримується");
-                }
-                
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { 
                         facingMode: "user",
@@ -602,14 +422,14 @@
                 
                 elements.cameraView.srcObject = stream;
                 
-                // Цикл обробки кадрів
+                // Обробка кадрів
                 async function processFrame() {
-                    try {
-                        if (elements.cameraView.readyState >= 2) {
+                    if (elements.cameraView.readyState >= 2) {
+                        try {
                             await hands.send({ image: elements.cameraView });
+                        } catch (e) {
+                            console.warn("Frame processing error:", e);
                         }
-                    } catch (e) {
-                        console.warn("Помилка обробки кадру:", e);
                     }
                     requestAnimationFrame(processFrame);
                 }
@@ -617,72 +437,55 @@
                 elements.cameraView.onloadeddata = processFrame;
                 
             } catch (error) {
-                console.warn("Помилка камери:", error);
-                updateStatus("Камера недоступна. Торкайтеся екрану 👇");
-                enableTouchMode();
+                console.warn("Camera error:", error);
+                throw error;
             }
         }
 
-        function enableTouchMode() {
-            isCameraOn = false;
-            elements.cameraContainer.style.display = 'none';
-            updateStatus("Торкайтеся екрану пальцями 👇");
-            
-            // Додаємо touch події
-            document.addEventListener('touchstart', handleTouch);
-            document.addEventListener('mousedown', handleTouch);
-        }
-
-        // ========== ОБРОБКА РУК ==========
         function onHandResults(results) {
             if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
                 // Руки не виявлено
-                elements.fingerGuide.textContent = "👋";
-                elements.fingerGuide.style.opacity = "0.3";
-                updateStatus("Покажи долоню камері 🖐️");
-                handState.raisedFingers = [];
-                updateFingerCounter();
+                elements.fingerDisplay.textContent = "👋";
+                updateFingerCount(0);
                 return;
             }
             
-            // Обробляємо першу руку
             const landmarks = results.multiHandLandmarks[0];
             const raisedFingers = detectRaisedFingers(landmarks);
             
-            // Оновлюємо стан
-            handState.raisedFingers = raisedFingers;
-            
             // Оновлюємо інтерфейс
-            updateFingerCounter();
-            updateFingerGuide(raisedFingers);
-            checkForCombos(raisedFingers);
-            createVisualEffects(landmarks, raisedFingers);
+            updateFingerDisplay(raisedFingers.length);
+            updateFingerCount(raisedFingers.length);
             
             // Відтворюємо звуки
-            playSoundsForFingers(raisedFingers);
+            if (audioStarted && raisedFingers.length > 0) {
+                playSounds(raisedFingers);
+            }
+            
+            // Візуальні ефекти
+            createFingerEffects(landmarks, raisedFingers);
+            
+            if (debugMode) {
+                showDebugInfo(raisedFingers);
+            }
         }
 
         function detectRaisedFingers(landmarks) {
             const raised = [];
             
             // Визначаємо підняті пальці
-            const fingerData = [
-                { tip: 4, base: 2, name: 'thumb' },
-                { tip: 8, base: 5, name: 'index' },
-                { tip: 12, base: 9, name: 'middle' },
-                { tip: 16, base: 13, name: 'ring' },
-                { tip: 20, base: 17, name: 'pinky' }
-            ];
+            const fingerTips = [4, 8, 12, 16, 20];
+            const fingerBases = [2, 5, 9, 13, 17];
             
-            fingerData.forEach((finger, index) => {
-                const tip = landmarks[finger.tip];
-                const base = landmarks[finger.base];
+            fingerTips.forEach((tipIndex, fingerIndex) => {
+                const tip = landmarks[tipIndex];
+                const base = landmarks[fingerBases[fingerIndex]];
                 
-                // Палець вважається піднятим, якщо кінчик значно вище основи
-                if (tip.y < base.y - CONFIG.FINGER_THRESHOLD) {
+                // Якщо кінчик вище основи на певну величину
+                if (tip.y < base.y - 0.05) {
                     raised.push({
-                        index: index,
-                        name: finger.name,
+                        index: fingerIndex,
+                        name: CONFIG.FINGER_NAMES[fingerIndex],
                         position: tip
                     });
                 }
@@ -691,149 +494,149 @@
             return raised;
         }
 
-        function checkForCombos(raisedFingers) {
-            if (raisedFingers.length === 0) return;
+        // ========== ТОРКАННЯ ЕКРАНУ ==========
+        function initTouchControls() {
+            updateStatus("Торкайтеся екрану пальцями");
             
-            const now = Date.now();
-            const fingerNames = raisedFingers.map(f => f.name).sort();
-            const comboKey = fingerNames.join('+');
-            
-            // Знаходимо комбінацію
-            const combo = FINGER_COMBOS[comboKey] || FINGER_COMBOS[raisedFingers[0].name];
-            
-            if (combo && now - lastComboTime > CONFIG.COMBO_TIME) {
-                lastComboTime = now;
-                comboCount++;
-                elements.comboCount.textContent = comboCount;
-                
-                // Показуємо назву комбінації
-                updateStatus(`Комбінація: ${combo.name}`);
-                
-                // Створюємо особливий ефект для комбінації
-                createComboEffect(combo.color);
-            }
+            document.addEventListener('touchstart', handleTouch);
+            document.addEventListener('mousedown', handleTouch);
         }
 
-        // ========== ВІДТВОРЕННЯ ЗВУКІВ ==========
-        function playSoundsForFingers(fingers) {
-            if (isMuted || !instruments[currentInstrument]) return;
+        function handleTouch(event) {
+            event.preventDefault();
             
-            const now = Tone.now();
+            // Запускаємо аудіо при першому торканні
+            if (!audioStarted) {
+                startAudio();
+            }
             
+            const x = event.clientX || (event.touches && event.touches[0].clientX);
+            const y = event.clientY || (event.touches && event.touches[0].clientY);
+            
+            if (!x || !y) return;
+            
+            // Визначаємо "палець" за позицією
+            const sectionWidth = window.innerWidth / 5;
+            const fingerIndex = Math.min(4, Math.floor(x / sectionWidth));
+            
+            // Імітуємо піднятий палець
+            const fakeFinger = {
+                index: fingerIndex,
+                name: CONFIG.FINGER_NAMES[fingerIndex],
+                position: { x: x / window.innerWidth, y: y / window.innerHeight }
+            };
+            
+            // Оновлюємо інтерфейс
+            updateFingerDisplay(1);
+            updateFingerCount(1);
+            
+            // Відтворюємо звук
+            if (audioStarted) {
+                playSoundForFinger(fakeFinger);
+            }
+            
+            // Візуальний ефект
+            createTouchEffect(x, y, fingerIndex);
+        }
+
+        // ========== ЗВУКИ ==========
+        function playSounds(fingers) {
             fingers.forEach((finger, index) => {
-                // Затримка для кожного пальця
-                const time = now + (index * 0.05);
-                
-                switch(currentInstrument) {
-                    case 'piano':
-                        playPianoNote(finger.index, time);
-                        break;
-                    case 'drums':
-                        playDrumSound(finger.index, time);
-                        break;
-                    case 'bells':
-                        playBellSound(finger.index, time);
-                        break;
-                    case 'animals':
-                        playAnimalSound(finger.index, time);
-                        break;
-                    case 'nature':
-                        playNatureSound(finger.index, time);
-                        break;
-                    case 'synth':
-                        playSynthSound(finger.index, time);
-                        break;
-                }
+                setTimeout(() => {
+                    playSoundForFinger(finger);
+                }, index * 50);
             });
         }
 
-        function playPianoNote(fingerIndex, time) {
-            const notes = ['C3', 'D3', 'E3', 'F3', 'G3'];
-            const note = notes[fingerIndex % notes.length];
-            instruments.piano.triggerAttackRelease(note, '8n', time);
+        function playSoundForFinger(finger) {
+            if (!audioStarted) return;
+            
+            const now = Tone.now();
+            const noteIndex = finger.index % CONFIG.NOTES.length;
+            const note = CONFIG.NOTES[noteIndex];
+            
+            switch(currentInstrument) {
+                case 'piano':
+                    synth.triggerAttackRelease(note, '8n', now);
+                    break;
+                    
+                case 'drums':
+                    playDrumSound(finger.index, now);
+                    break;
+                    
+                case 'bells':
+                    bells.triggerAttackRelease(note, '4n', now);
+                    break;
+                    
+                case 'synth':
+                    playSynthSound(finger.index, now);
+                    break;
+                    
+                case 'nature':
+                    natureSynth.triggerAttackRelease(note, '2n', now);
+                    break;
+                    
+                case 'animals':
+                    playAnimalSound(finger.index, now);
+                    break;
+            }
         }
 
         function playDrumSound(fingerIndex, time) {
             const drumTypes = [
-                { note: 'C1', duration: '8n' },  // Бас
-                { note: 'D1', duration: '16n' }, // Маленький
-                { note: 'E1', duration: '32n' }, // Хай-хет
-                { note: 'F1', duration: '8n' },  // Том
-                { note: 'G1', duration: '16n' }  // Клап
+                { pitch: 'C2', duration: '8n' },
+                { pitch: 'D2', duration: '16n' },
+                { pitch: 'E2', duration: '32n' },
+                { pitch: 'F2', duration: '8n' },
+                { pitch: 'G2', duration: '16n' }
             ];
             
             const drum = drumTypes[fingerIndex % drumTypes.length];
-            instruments.drums.triggerAttackRelease(drum.duration, time);
-        }
-
-        function playBellSound(fingerIndex, time) {
-            const notes = ['C5', 'E5', 'G5', 'A5', 'C6'];
-            const note = notes[fingerIndex % notes.length];
-            instruments.bells.triggerAttackRelease(note, '2n', time);
-        }
-
-        function playAnimalSound(fingerIndex, time) {
-            const sounds = [
-                { note: 'C2', duration: '4n' }, // Лев
-                { note: 'D2', duration: '8n' }, // Собака
-                { note: 'E2', duration: '16n' }, // Кішка
-                { note: 'F2', duration: '4n' }, // Корова
-                { note: 'G2', duration: '8n' }  // Півень
-            ];
-            
-            const sound = sounds[fingerIndex % sounds.length];
-            instruments.animals.triggerAttackRelease(sound.note, sound.duration, time);
-        }
-
-        function playNatureSound(fingerIndex, time) {
-            const sounds = [
-                { note: 'C4', duration: '1n' }, // Дощ
-                { note: 'E4', duration: '2n' }, // Вітер
-                { note: 'G4', duration: '4n' }, // Вода
-                { note: 'A4', duration: '2n' }, // Птахи
-                { note: 'C5', duration: '1n' }  // Гром
-            ];
-            
-            const sound = sounds[fingerIndex % sounds.length];
-            instruments.nature.triggerAttackRelease(sound.note, sound.duration, time);
+            drums.triggerAttackRelease(drum.duration, time);
         }
 
         function playSynthSound(fingerIndex, time) {
             const notes = ['C4', 'E4', 'G4', 'B4', 'D5'];
             const note = notes[fingerIndex % notes.length];
-            instruments.synth.triggerAttackRelease(note, '8n', time);
+            
+            const fmSynth = new Tone.FMSynth({
+                harmonicity: 3 + fingerIndex,
+                modulationIndex: 10
+            }).toDestination();
+            
+            fmSynth.triggerAttackRelease(note, '8n', time);
+        }
+
+        function playAnimalSound(fingerIndex, time) {
+            const sounds = [
+                { pitch: 'C2', duration: '4n' },
+                { pitch: 'D2', duration: '8n' },
+                { pitch: 'E2', duration: '16n' },
+                { pitch: 'F2', duration: '4n' },
+                { pitch: 'G2', duration: '8n' }
+            ];
+            
+            const sound = sounds[fingerIndex % sounds.length];
+            animalSynth.triggerAttackRelease(sound.pitch, sound.duration, time);
         }
 
         // ========== ВІЗУАЛЬНІ ЕФЕКТИ ==========
-        function createVisualEffects(landmarks, raisedFingers) {
-            // Створюємо точки на місцях пальців
-            raisedFingers.forEach(finger => {
+        function createFingerEffects(landmarks, fingers) {
+            // Очищаємо попередні об'єкти
+            fingerObjects.forEach(obj => scene.remove(obj));
+            fingerObjects = [];
+            
+            // Створюємо нові об'єкти для кожного пальця
+            fingers.forEach(finger => {
                 const x = (finger.position.x * 2 - 1) * 5;
                 const y = -(finger.position.y * 2 - 1) * 3;
+                const color = CONFIG.COLORS[finger.index % CONFIG.COLORS.length];
                 
-                createFingerPoint(x, y, finger.index);
+                createFingerSphere(x, y, color);
             });
-            
-            // Малюємо лінії між пальцями
-            if (raisedFingers.length > 1) {
-                for (let i = 0; i < raisedFingers.length - 1; i++) {
-                    const f1 = raisedFingers[i];
-                    const f2 = raisedFingers[i + 1];
-                    
-                    const x1 = (f1.position.x * 2 - 1) * 5;
-                    const y1 = -(f1.position.y * 2 - 1) * 3;
-                    const x2 = (f2.position.x * 2 - 1) * 5;
-                    const y2 = -(f2.position.y * 2 - 1) * 3;
-                    
-                    createConnectionLine(x1, y1, x2, y2, i);
-                }
-            }
         }
 
-        function createFingerPoint(x, y, fingerIndex) {
-            const colors = [0xFF4081, 0x4CAF50, 0x2196F3, 0xFFEB3B, 0x9C27B0];
-            const color = colors[fingerIndex % colors.length];
-            
+        function createFingerSphere(x, y, color) {
             const geometry = new THREE.SphereGeometry(0.1, 16, 16);
             const material = new THREE.MeshBasicMaterial({ 
                 color: color,
@@ -844,193 +647,93 @@
             const sphere = new THREE.Mesh(geometry, material);
             sphere.position.set(x, y, -2);
             scene.add(sphere);
+            fingerObjects.push(sphere);
             
             // Анімація
-            gsap.to(sphere.scale, {
-                x: 2,
-                y: 2,
-                z: 2,
-                duration: 0.3,
-                ease: "back.out(1.7)"
-            });
+            const startTime = Date.now();
             
-            gsap.to(sphere.material, {
-                opacity: 0,
-                duration: 0.5,
-                onComplete: () => scene.remove(sphere)
-            });
-        }
-
-        function createConnectionLine(x1, y1, x2, y2, index) {
-            const colors = [0xFF9800, 0x00BCD4, 0xE91E63, 0x8BC34A];
-            const color = colors[index % colors.length];
+            function animateSphere() {
+                const elapsed = Date.now() - startTime;
+                if (elapsed > 1000) {
+                    scene.remove(sphere);
+                    const index = fingerObjects.indexOf(sphere);
+                    if (index > -1) fingerObjects.splice(index, 1);
+                    return;
+                }
+                
+                const scale = 1 + Math.sin(elapsed / 100) * 0.3;
+                sphere.scale.setScalar(scale);
+                sphere.material.opacity = 0.8 - (elapsed / 1000) * 0.8;
+                
+                requestAnimationFrame(animateSphere);
+            }
             
-            const material = new THREE.LineBasicMaterial({ 
-                color: color,
-                transparent: true,
-                opacity: 0.6,
-                linewidth: 2
-            });
-            
-            const points = [
-                new THREE.Vector3(x1, y1, -2),
-                new THREE.Vector3(x2, y2, -2)
-            ];
-            
-            const geometry = new THREE.BufferGeometry().setFromPoints(points);
-            const line = new THREE.Line(geometry, material);
-            scene.add(line);
-            
-            // Анімація
-            gsap.to(line.material, {
-                opacity: 0,
-                duration: 0.5,
-                onComplete: () => scene.remove(line)
-            });
-        }
-
-        function createComboEffect(color) {
-            // Створюємо кільце для комбінації
-            const ringGeometry = new THREE.RingGeometry(0.5, 0.7, 64);
-            const ringMaterial = new THREE.MeshBasicMaterial({
-                color: color,
-                transparent: true,
-                opacity: 0.8,
-                side: THREE.DoubleSide
-            });
-            
-            const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-            ring.position.z = -1;
-            ring.rotation.x = Math.PI / 2;
-            scene.add(ring);
-            
-            // Анімація
-            gsap.to(ring.scale, {
-                x: 3,
-                y: 3,
-                duration: 0.8,
-                ease: "power2.out"
-            });
-            
-            gsap.to(ring.material, {
-                opacity: 0,
-                duration: 0.8,
-                onComplete: () => scene.remove(ring)
-            });
-        }
-
-        // ========== ТОРКАННЯ ЕКРАНУ ==========
-        function handleTouch(event) {
-            event.preventDefault();
-            
-            const x = event.clientX || event.touches[0].clientX;
-            const y = event.clientY || event.touches[0].clientY;
-            
-            // Визначаємо, який "палець" торкнувся (5 зон)
-            const sectionWidth = window.innerWidth / 5;
-            const fingerIndex = Math.min(4, Math.floor(x / sectionWidth));
-            
-            // Створюємо штучні пальці
-            const fakeFingers = [{
-                index: fingerIndex,
-                name: ['thumb', 'index', 'middle', 'ring', 'pinky'][fingerIndex],
-                position: { x: x / window.innerWidth, y: y / window.innerHeight }
-            }];
-            
-            // Оновлюємо інтерфейс
-            handState.raisedFingers = fakeFingers;
-            updateFingerCounter();
-            updateFingerGuide(fakeFingers);
-            
-            // Відтворюємо звук
-            playSoundsForFingers(fakeFingers);
-            
-            // Візуальний ефект
-            createTouchEffect(x, y, fingerIndex);
+            animateSphere();
         }
 
         function createTouchEffect(x, y, fingerIndex) {
             const xPos = (x / window.innerWidth) * 10 - 5;
             const yPos = -(y / window.innerHeight) * 6 + 3;
+            const color = CONFIG.COLORS[fingerIndex % CONFIG.COLORS.length];
             
-            createFingerPoint(xPos, yPos, fingerIndex);
+            createFingerSphere(xPos, yPos, color);
         }
 
         // ========== ІНТЕРФЕЙС ==========
         function updateStatus(message) {
-            elements.statusPanel.textContent = message;
+            elements.status.textContent = message;
         }
 
-        function updateFingerCounter() {
-            const count = handState.raisedFingers.length;
+        function updateFingerDisplay(count) {
+            const displays = ["👋", "👆", "✌️", "🤟", "🖖", "🖐️"];
+            const index = Math.min(count, displays.length - 1);
+            elements.fingerDisplay.textContent = displays[index];
+            elements.fingerDisplay.style.opacity = count > 0 ? "0.8" : "0.3";
+        }
+
+        function updateFingerCount(count) {
             elements.fingerCount.textContent = count;
             
-            // Змінюємо колір залежно від кількості
+            // Змінюємо колір
             if (count === 0) {
-                elements.fingerCounter.style.color = '#FF4081';
+                elements.counter.style.color = '#FF4081';
             } else if (count <= 2) {
-                elements.fingerCounter.style.color = '#4CAF50';
+                elements.counter.style.color = '#4CAF50';
             } else if (count <= 4) {
-                elements.fingerCounter.style.color = '#2196F3';
+                elements.counter.style.color = '#2196F3';
             } else {
-                elements.fingerCounter.style.color = '#FFEB3B';
+                elements.counter.style.color = '#FFEB3B';
             }
         }
 
-        function updateFingerGuide(fingers) {
-            if (fingers.length === 0) {
-                elements.fingerGuide.textContent = "👋";
-                elements.fingerGuide.style.opacity = "0.3";
-            } else if (fingers.length === 1) {
-                elements.fingerGuide.textContent = "👆";
-                elements.fingerGuide.style.opacity = "1";
-            } else if (fingers.length === 2) {
-                elements.fingerGuide.textContent = "✌️";
-                elements.fingerGuide.style.opacity = "1";
-            } else if (fingers.length === 3) {
-                elements.fingerGuide.textContent = "🤟";
-                elements.fingerGuide.style.opacity = "1";
-            } else if (fingers.length === 4) {
-                elements.fingerGuide.textContent = "🖖";
-                elements.fingerGuide.style.opacity = "1";
-            } else {
-                elements.fingerGuide.textContent = "🖐️";
-                elements.fingerGuide.style.opacity = "1";
-            }
-        }
-
-        // ========== КЕРУВАННЯ ==========
         function switchInstrument(instrument) {
             currentInstrument = instrument;
             
             // Оновлюємо кнопки
             document.querySelectorAll('.instrument-btn').forEach(btn => {
                 btn.classList.remove('active');
-                if (btn.textContent.includes(getInstrumentName(instrument))) {
-                    btn.classList.add('active');
-                }
             });
             
-            updateStatus(`Інструмент: ${getInstrumentName(instrument)}`);
+            event.target.classList.add('active');
             
-            // Відтворюємо тестовий звук
-            if (!isMuted && instruments[instrument]) {
+            // Показуємо назву інструмента
+            const names = {
+                'piano': 'Ноти',
+                'drums': 'Барабани', 
+                'bells': 'Дзвіночки',
+                'synth': 'Синтезатор',
+                'nature': 'Природа',
+                'animals': 'Звірі'
+            };
+            
+            updateStatus(`Інструмент: ${names[instrument]}`);
+            
+            // Тестовий звук
+            if (audioStarted) {
                 setTimeout(() => {
                     playTestSound();
                 }, 100);
             }
-        }
-
-        function getInstrumentName(instrument) {
-            const names = {
-                'piano': 'Мелодія',
-                'drums': 'Ритм',
-                'bells': 'Дзвін',
-                'animals': 'Звірі',
-                'nature': 'Природа',
-                'synth': 'Синт'
-            };
-            return names[instrument];
         }
 
         function playTestSound() {
@@ -1038,107 +741,51 @@
             
             switch(currentInstrument) {
                 case 'piano':
-                    instruments.piano.triggerAttackRelease('C4', '8n', now);
+                    synth.triggerAttackRelease('C4', '8n', now);
                     break;
                 case 'drums':
-                    instruments.drums.triggerAttackRelease('8n', now);
+                    drums.triggerAttackRelease('8n', now);
                     break;
                 case 'bells':
-                    instruments.bells.triggerAttackRelease('C5', '4n', now);
+                    bells.triggerAttackRelease('C5', '4n', now);
                     break;
             }
         }
 
-        function toggleCamera() {
-            isCameraOn = !isCameraOn;
-            elements.cameraContainer.style.display = isCameraOn ? 'block' : 'none';
-            
-            if (isCameraOn) {
-                updateStatus("Покажи пальчики камері 🖐️");
-            } else {
-                updateStatus("Торкайтеся екрану 👇");
-            }
-        }
-
-        function toggleMute() {
-            isMuted = !isMuted;
-            
-            if (isMuted) {
-                Tone.Destination.mute = true;
-                updateStatus("🔇 Звук вимкнено");
-            } else {
-                Tone.Destination.mute = false;
-                updateStatus("🔊 Звук увімкнено");
-            }
-        }
-
-        function showInstructions() {
+        function showHelp() {
             alert(
-                "🎵 ТЕРАПЕВТИЧНИЙ ОРКЕСТР ДЛЯ РОЗВИТКУ МОТОРИКИ 🎵\n\n" +
-                "🎯 МЕТА: Розвиток дрібної моторики, координації рук та слухового сприйняття\n\n" +
+                "🎵 ТЕРАПЕВТИЧНИЙ ОРКЕСТР ДЛЯ РОЗВИТКУ МОТОРИКИ\n\n" +
+                "🎯 МЕТА: Розвиток дрібної моторики та координації\n\n" +
                 "👆 ЯК ГРАТИ:\n" +
                 "1. Покажіть пальчики камері\n" +
                 "2. Кожен палець - свій звук\n" +
-                "3. Різні комбінації - різні мелодії\n" +
-                "4. Кулак - пауза\n" +
-                "5. Долоня - усі звуки\n\n" +
+                "3. Торкайтеся екрану, якщо камера не працює\n" +
+                "4. Спробуйте різні інструменти\n\n" +
                 "🎹 ІНСТРУМЕНТИ:\n" +
-                "• Мелодія - музичні ноти\n" +
-                "• Ритм - барабанні звуки\n" +
-                "• Дзвін - дзвіночки\n" +
-                "• Звірі - звуки тварин\n" +
-                "• Природа - природні звуки\n" +
-                "• Синт - електронні звуки\n\n" +
-                "🔄 РЕЖИМИ:\n" +
-                "• Камера - трекінг рук\n" +
-                "• Торкання - гра по екрану\n" +
-                "• Звук - увімк/вимк\n\n" +
+                "• Ноти - музичні звуки\n" +
+                "• Барабани - ритмічні звуки\n" +
+                "• Дзвіночки - мелодійні звуки\n" +
+                "• Синтезатор - електронні звуки\n" +
+                "• Природа - спокійні звуки\n" +
+                "• Звірі - звуки тварин\n\n" +
                 "🌟 ДЛЯ РАС-ДІТЕЙ:\n" +
-                "• Стимуляція сенсорної інтеграції\n" +
-                "• Розвиток координації рук-око\n" \\
-                "• Позитивне підкріплення звуками\n" +
-                "• Інтерактивна мотивація до рухів"
+                "• Розвиває координацію рук\n" +
+                "• Стимулює сенсорну інтеграцію\n" +
+                "• Підвищує концентрацію уваги\n" +
+                "• Створює позитивні асоціації"
             );
         }
 
-        function showWelcomeMessage() {
-            // Сховати завантаження
-            elements.loading.style.opacity = '0';
-            setTimeout(() => {
-                elements.loading.style.display = 'none';
-            }, 500);
-            
-            // Показати привітання
-            updateStatus("Вітаємо! Покажіть долоню камері 🖐️");
-            
-            // Анімація пальців
-            const guides = ["👋", "👆", "✌️", "🤟", "🖖", "🖐️"];
-            let i = 0;
-            const interval = setInterval(() => {
-                elements.fingerGuide.textContent = guides[i];
-                i = (i + 1) % guides.length;
-            }, 500);
-            
-            setTimeout(() => clearInterval(interval), 3000);
+        function toggleDebug() {
+            debugMode = !debugMode;
+            updateStatus(debugMode ? "Режим налагодження увімкнено" : "Режим налагодження вимкнено");
         }
 
-        function showError(title, message) {
-            updateStatus(`⚠️ ${title}: ${message}`);
-        }
-
-        // ========== АНІМАЦІЯ ==========
-        function animate() {
-            requestAnimationFrame(animate);
-            
-            // Обертаємо частинки фону
-            visualObjects.forEach(obj => {
-                if (obj.rotation) {
-                    obj.rotation.x += 0.001;
-                    obj.rotation.y += 0.002;
-                }
+        function showDebugInfo(fingers) {
+            console.log(`Пальців: ${fingers.length}`);
+            fingers.forEach(f => {
+                console.log(`${f.name}: x=${f.position.x.toFixed(2)}, y=${f.position.y.toFixed(2)}`);
             });
-            
-            renderer.render(scene, camera);
         }
 
         // ========== ЗАПУСК ==========
@@ -1152,11 +799,11 @@
             }
         });
 
-        // Експорт функцій
+        // Глобальні функції
         window.switchInstrument = switchInstrument;
-        window.toggleCamera = toggleCamera;
-        window.toggleMute = toggleMute;
-        window.showInstructions = showInstructions;
+        window.startAudio = startAudio;
+        window.showHelp = showHelp;
+        window.toggleDebug = toggleDebug;
     </script>
 </body>
 </html>
