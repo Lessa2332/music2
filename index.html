@@ -1,1437 +1,385 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎵 Музична терапія для РАС-дітей</title>
-    
-    <!-- Бібліотеки з фіксованими версіями -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/15.0.1/Tone.js"></script>
-    
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#1a237e">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        :root {
-            --primary: #1a237e;
-            --secondary: #4a148c;
-            --accent: #FF4081;
-            --success: #4CAF50;
-            --warning: #FFC107;
-            --info: #2196F3;
-        }
-        
-        body {
-            font-family: 'Arial Rounded MT Bold', 'Arial', sans-serif;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-            color: white;
-            height: 100vh;
-            width: 100vw;
-            overflow: hidden;
-            touch-action: none;
-            -webkit-tap-highlight-color: transparent;
-        }
-        
-        /* Камера та 3D */
-        .camera-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-        }
-        
-        #cameraView {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transform: scaleX(-1);
-            opacity: 0.2;
-            transition: opacity 0.3s;
-        }
-        
-        #canvas3d {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 2;
-            pointer-events: none;
-        }
-        
-        /* Основні UI компоненти */
-        .main-ui {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            padding: 20px;
-            pointer-events: none;
-        }
-        
-        .main-ui > * {
-            pointer-events: auto;
-        }
-        
-        /* Заголовок */
-        .title-bar {
-            background: linear-gradient(135deg, var(--accent) 0%, #E91E63 100%);
-            padding: 15px 25px;
-            border-radius: 50px;
-            border: 3px solid white;
-            box-shadow: 0 8px 25px rgba(255, 64, 129, 0.4);
-            backdrop-filter: blur(15px);
-            margin-bottom: 15px;
-            text-align: center;
-            animation: pulse-glow 3s infinite alternate;
-        }
-        
-        .title-bar h1 {
-            font-size: 22px;
-            margin: 0;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }
-        
-        /* Статус панель */
-        .status-panel {
-            background: rgba(33, 150, 243, 0.95);
-            padding: 15px 25px;
-            border-radius: 30px;
-            border: 3px solid white;
-            backdrop-filter: blur(15px);
-            margin-bottom: 15px;
-            text-align: center;
-            font-size: 18px;
-            min-height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s;
-        }
-        
-        .status-panel.success {
-            background: rgba(76, 175, 80, 0.95);
-            animation: success-pulse 2s infinite;
-        }
-        
-        .status-panel.warning {
-            background: rgba(255, 193, 7, 0.95);
-            animation: warning-pulse 2s infinite;
-        }
-        
-        /* Інструменти */
-        .instruments-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-            margin-bottom: 15px;
-        }
-        
-        .instrument-btn {
-            background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(15px);
-            border: 3px solid white;
-            color: white;
-            padding: 15px 8px;
-            border-radius: 20px;
-            font-size: 16px;
-            cursor: pointer;
-            font-weight: bold;
-            text-align: center;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .instrument-btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-            transition: left 0.5s;
-        }
-        
-        .instrument-btn:hover::before {
-            left: 100%;
-        }
-        
-        .instrument-btn:hover {
-            transform: translateY(-5px) scale(1.05);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-        }
-        
-        .instrument-btn.active {
-            background: linear-gradient(135deg, var(--success) 0%, #45a049 100%);
-            transform: scale(1.05);
-            box-shadow: 0 0 30px var(--success);
-            border-color: #FFEB3B;
-        }
-        
-        /* Налаштування */
-        .settings-panel {
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(15px);
-            border: 3px solid var(--info);
-            border-radius: 25px;
-            padding: 20px;
-            margin-bottom: 15px;
-            display: none;
-        }
-        
-        .settings-panel.active {
-            display: block;
-            animation: slide-up 0.3s ease-out;
-        }
-        
-        .setting-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 15px;
-            padding: 10px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 15px;
-        }
-        
-        .setting-item:last-child {
-            margin-bottom: 0;
-        }
-        
-        .slider {
-            width: 60%;
-            height: 20px;
-            -webkit-appearance: none;
-            background: linear-gradient(90deg, var(--primary), var(--accent));
-            border-radius: 10px;
-            outline: none;
-        }
-        
-        .slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            background: white;
-            border: 3px solid var(--accent);
-            cursor: pointer;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.3);
-        }
-        
-        /* Керування */
-        .controls-row {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-        
-        .control-btn {
-            background: linear-gradient(135deg, var(--info) 0%, #0d8bf2 100%);
-            border: 3px solid white;
-            color: white;
-            padding: 12px 20px;
-            border-radius: 25px;
-            font-size: 16px;
-            cursor: pointer;
-            font-weight: bold;
-            min-width: 140px;
-            transition: all 0.3s;
-            flex: 1;
-            min-width: 0;
-        }
-        
-        .control-btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 20px rgba(33, 150, 243, 0.4);
-        }
-        
-        .control-btn.secondary {
-            background: linear-gradient(135deg, var(--warning) 0%, #ffb300 100%);
-        }
-        
-        /* Візуальні показники */
-        .visual-indicators {
-            position: fixed;
-            pointer-events: none;
-            z-index: 999;
-        }
-        
-        .finger-display {
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 80px;
-            opacity: 0.4;
-            filter: drop-shadow(0 0 20px currentColor);
-            transition: all 0.5s;
-        }
-        
-        .progress-ring {
-            position: fixed;
-            bottom: 250px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 100px;
-            height: 100px;
-        }
-        
-        .progress-ring circle {
-            fill: none;
-            stroke-width: 8;
-            stroke-linecap: round;
-            transform: rotate(-90deg);
-            transform-origin: 50% 50%;
-            transition: stroke-dashoffset 0.3s;
-        }
-        
-        .finger-counter {
-            position: fixed;
-            bottom: 290px;
-            left: 0;
-            right: 0;
-            text-align: center;
-            font-size: 36px;
-            color: var(--warning);
-            text-shadow: 0 0 25px var(--warning);
-            font-weight: bold;
-        }
-        
-        /* Конфетті ефект */
-        .confetti {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 1001;
-            display: none;
-        }
-        
-        .confetti.active {
-            display: block;
-            animation: confetti-fall 5s linear;
-        }
-        
-        /* Завантаження */
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: var(--primary);
-            z-index: 2000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            transition: opacity 0.5s;
-        }
-        
-        .progress-container {
-            width: 80%;
-            max-width: 400px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 25px;
-            padding: 20px;
-            text-align: center;
-        }
-        
-        .progress-bar {
-            width: 100%;
-            height: 20px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 10px;
-            margin: 20px 0;
-            overflow: hidden;
-        }
-        
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, var(--success), var(--accent));
-            border-radius: 10px;
-            width: 0%;
-            transition: width 0.3s;
-        }
-        
-        /* Анімації */
-        @keyframes pulse-glow {
-            0% { box-shadow: 0 8px 25px rgba(255, 64, 129, 0.4); }
-            100% { box-shadow: 0 8px 40px rgba(255, 64, 129, 0.8); }
-        }
-        
-        @keyframes success-pulse {
-            0%, 100% { box-shadow: 0 0 20px rgba(76, 175, 80, 0.5); }
-            50% { box-shadow: 0 0 40px rgba(76, 175, 80, 0.8); }
-        }
-        
-        @keyframes warning-pulse {
-            0%, 100% { box-shadow: 0 0 20px rgba(255, 193, 7, 0.5); }
-            50% { box-shadow: 0 0 40px rgba(255, 193, 7, 0.8); }
-        }
-        
-        @keyframes slide-up {
-            from { transform: translateY(20px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-        
-        @keyframes confetti-fall {
-            0% { opacity: 1; transform: translateY(-100%); }
-            100% { opacity: 0; transform: translateY(100vh); }
-        }
-        
-        /* Адаптивність */
-        @media (max-width: 768px) {
-            .title-bar h1 { font-size: 18px; }
-            .status-panel { font-size: 16px; padding: 12px 20px; }
-            .instrument-btn { font-size: 14px; padding: 12px 6px; }
-            .control-btn { font-size: 14px; padding: 10px 15px; }
-            .finger-display { font-size: 60px; }
-            .finger-counter { font-size: 28px; bottom: 270px; }
-            .progress-ring { bottom: 230px; }
-        }
-        
-        @media (max-height: 700px) {
-            .instruments-grid { grid-template-columns: repeat(2, 1fr); }
-            .finger-counter { bottom: 240px; }
-            .progress-ring { bottom: 200px; }
-        }
-        
-        /* Режим для РАС */
-        body.calm-mode {
-            background: linear-gradient(135deg, #0d47a1 0%, #1a237e 100%);
-        }
-        
-        body.calm-mode .title-bar {
-            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
-        }
-        
-        body.calm-mode .instrument-btn.active {
-            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Творець Світів — Формування рельєфу</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #0e1b24;
+  color: #fff;
+  text-align: center;
+  touch-action: manipulation;
+}
+
+h1 { margin: 12px; }
+
+#container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+  padding: 10px;
+}
+
+canvas {
+  border: 3px solid #fff;
+  border-radius: 8px;
+  box-shadow: 0 0 20px rgba(0,0,0,0.8);
+  touch-action: none;
+}
+
+.controls {
+  min-width: 320px;
+  max-width: 360px;
+  padding: 15px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 10px;
+  text-align: left;
+}
+
+.controls h3 {
+  margin: 15px 0 8px;
+  color: #ffd966;
+  font-size: 18px;
+}
+
+button {
+  width: 100%;
+  margin: 5px 0;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 15px;
+  transition: transform 0.1s;
+}
+
+button:active { transform: scale(0.98); }
+
+.internal { background: #c0392b; color: #fff; }
+.external { background: #2980b9; color: #fff; }
+.disaster { background: #8e44ad; color: #fff; }
+.utility  { background: #27ae60; color: #fff; }
+
+#brush-size {
+  display: flex;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+#brush-size button {
+  flex: 1;
+  background: #34495e;
+  padding: 8px;
+  font-size: 14px;
+}
+
+#brush-size button.active {
+  background: #ffd966;
+  color: #000;
+}
+
+#info {
+  font-size: 13px;
+  margin-top: 12px;
+  opacity: 0.9;
+  line-height: 1.4;
+}
+</style>
 </head>
+
 <body>
-    <!-- Завантаження -->
-    <div class="loading-overlay" id="loadingOverlay">
-        <div class="progress-container">
-            <div style="font-size: 60px; margin-bottom: 20px;">🎵✨</div>
-            <h1 style="color: #FFEB3B; margin-bottom: 10px;">Музична терапія для РАС</h1>
-            <div id="loadingText">Завантаження...</div>
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill"></div>
-            </div>
-            <div style="font-size: 14px; opacity: 0.8;">
-                Додаток працює офлайн після завантаження
-            </div>
-        </div>
+
+<h1>🌍 Творець Світів</h1>
+<p>Інтерактивне формування рельєфу (НУШ)</p>
+
+<div id="container">
+  <canvas id="world" width="500" height="500"></canvas>
+
+  <div class="controls">
+    <h3>🖌️ Режим малювання</h3>
+    <div id="brush-size">
+      <button class="active" onclick="setBrush(1)">Мала</button>
+      <button onclick="setBrush(3)">Середня</button>
+      <button onclick="setBrush(5)">Велика</button>
     </div>
+    <p style="font-size:13px;margin:8px 0;">✋ Малюй мишею/пальцем<br>↕️ Shift — опускати рельєф</p>
 
-    <!-- Конфетті ефект -->
-    <div class="confetti" id="confetti"></div>
+    <h3>🔴 Внутрішні процеси</h3>
+    <button class="internal" onclick="uplift()">⬆️ Тектонічне підняття</button>
+    <button class="internal" onclick="fault()">⚡ Розлом</button>
+    <button class="internal" onclick="volcano()">🌋 Вулкан</button>
 
-    <!-- Основні UI елементи -->
-    <div class="main-ui">
-        <div class="title-bar">
-            <h1>🎵 ТЕРАПЕВТИЧНИЙ МУЗИЧНИЙ ДОДАТОК ДЛЯ РАС-ДІТЕЙ 🎵</h1>
-        </div>
-        
-        <div class="status-panel" id="statusPanel">
-            Натисніть "Увімкнути звук" для початку
-        </div>
+    <h3>🔵 Зовнішні процеси</h3>
+    <button class="external" onclick="rain()">🌧 Річкова ерозія</button>
+    <button class="external" onclick="wind()">🌬 Вітрова ерозія</button>
+    <button class="external" onclick="glacier()">🧊 Зледеніння</button>
+    <button class="external" onclick="weathering()">🪨 Вивітрювання</button>
 
-        <!-- Візуальні показники -->
-        <div class="visual-indicators finger-display" id="fingerDisplay">👋</div>
-        
-        <svg class="visual-indicators progress-ring" id="progressRing" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="40" stroke="#FF4081" stroke-dasharray="251.2" 
-                    stroke-dashoffset="251.2" id="progressCircle"></circle>
-        </svg>
-        
-        <div class="visual-indicators finger-counter" id="fingerCounter">
-            Пальців: <span id="fingerCount">0</span>/5
-        </div>
+    <h3>🚨 Режим катастроф</h3>
+    <button class="disaster" onclick="flood()">🌊 Повінь</button>
+    <button class="disaster" onclick="earthquake()">🌐 Землетрус</button>
+    <button class="disaster" onclick="landslide()">⬇️ Зсув</button>
+    <button class="disaster" onclick="eruption()">🔥 Виверження</button>
 
-        <!-- Інструменти -->
-        <div class="instruments-grid" id="instrumentsGrid">
-            <!-- Інструменти будуть додані через JS -->
-        </div>
+    <h3>⚙️ Керування</h3>
+    <button class="utility" onclick="resetWorld()">🔄 Очистити світ</button>
+    <button class="utility" onclick="randomWorld()">🎲 Випадковий світ</button>
 
-        <!-- Налаштування -->
-        <div class="settings-panel" id="settingsPanel">
-            <div class="setting-item">
-                <span>Чутливість пальців:</span>
-                <input type="range" min="1" max="10" value="5" class="slider" id="sensitivitySlider">
-            </div>
-            <div class="setting-item">
-                <span>Гучність:</span>
-                <input type="range" min="0" max="100" value="30" class="slider" id="volumeSlider">
-            </div>
-            <div class="setting-item">
-                <span>Режим:</span>
-                <select id="modeSelect" style="padding: 8px; border-radius: 10px; border: 2px solid white;">
-                    <option value="normal">Нормальний</option>
-                    <option value="calm">Спокійний</option>
-                    <option value="single">По одному звуку</option>
-                </select>
-            </div>
-        </div>
-
-        <!-- Керування -->
-        <div class="controls-row">
-            <button class="control-btn" onclick="startAudio()" id="audioBtn">🔊 Увімкнути звук</button>
-            <button class="control-btn secondary" onclick="toggleSettings()">⚙️ Налаштування</button>
-            <button class="control-btn" onclick="toggleCamera()" id="cameraBtn">📷 Камера</button>
-            <button class="control-btn secondary" onclick="startRecording()" id="recordBtn">⏺️ Запис (30с)</button>
-            <button class="control-btn" onclick="showHelp()">❓ Допомога</button>
-        </div>
+    <div id="info">
+      🏔 Форми рельєфу позначаються автоматично<br>
+      💡 Спробуй створити гори, а потім запустити ерозію!
     </div>
+  </div>
+</div>
 
-    <!-- Камера та 3D -->
-    <div class="camera-container" id="cameraContainer">
-        <video id="cameraView" autoplay playsinline muted></video>
-    </div>
-    <canvas id="canvas3d"></canvas>
+<script>
+const canvas = document.getElementById("world");
+const ctx = canvas.getContext("2d");
 
-    <!-- Service Worker Registration -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js').then(registration => {
-                    console.log('ServiceWorker registered');
-                }).catch(error => {
-                    console.log('ServiceWorker registration failed:', error);
-                });
-            });
+const size = 100; // збільшено для плавності
+const cell = canvas.width / size;
+let heightMap = [];
+let brushSize = 1;
+let lowering = false;
+
+function init() {
+  heightMap = Array.from({length: size}, () => Array(size).fill(0));
+  draw();
+}
+
+function getColor(h) {
+  if (h <= -5) return "#003366";     // глибокий океан
+  if (h <= 0)  return "#006699";     // океан
+  if (h <= 2)  return "#66b2ff";     // мілина
+  if (h <= 8)  return "#b3ff99";     // берег/рівнина
+  if (h <= 18) return "#99cc66";     // низькі пагорби
+  if (h <= 30) return "#b3863d";     // пагорби
+  if (h <= 45) return "#888888";     // гори
+  return "#ffffff";                  // снігові вершини
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Малюємо рельєф
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const h = heightMap[y][x];
+      ctx.fillStyle = getColor(h);
+      ctx.fillRect(x * cell, y * cell, cell, cell);
+    }
+  }
+
+  // Напівпрозора вода над низькими ділянками
+  ctx.fillStyle = "rgba(0, 100, 200, 0.4)";
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      if (heightMap[y][x] <= 0) {
+        ctx.fillRect(x * cell, y * cell, cell, cell);
+      }
+    }
+  }
+
+  drawDynamicLabels();
+}
+
+function drawDynamicLabels() {
+  ctx.fillStyle = "rgba(0,0,0,0.6)";
+  ctx.fillRect(4, 4, 140, 92);
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(4, 4, 140, 92);
+
+  ctx.fillStyle = "white";
+  ctx.font = "bold 14px Arial";
+  ctx.textAlign = "left";
+
+  let hasMountains = false, hasPlains = false, hasLowlands = false;
+
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const h = heightMap[y][x];
+      if (h > 30) hasMountains = true;
+      if (h > 0 && h <= 15) hasPlains = true;
+      if (h <= 0) hasLowlands = true;
+    }
+  }
+
+  let offset = 20;
+  if (hasMountains) { ctx.fillText("⛰ Гори", 12, offset); offset += 22; }
+  if (hasPlains)    { ctx.fillText("▭ Рівнини", 12, offset); offset += 22; }
+  if (hasLowlands)  { ctx.fillText("∇ Низовини / Океан", 12, offset); }
+}
+
+// Малювання
+canvas.addEventListener("pointerdown", e => { sculpt(e); });
+canvas.addEventListener("pointermove", e => { if (e.buttons === 1 || e.pointerType === "touch") sculpt(e); });
+
+document.addEventListener("keydown", e => { if (e.key === "Shift") lowering = true; });
+document.addEventListener("keyup", e => { if (e.key === "Shift") lowering = false; });
+
+function sculpt(e) {
+  const rect = canvas.getBoundingClientRect();
+  const x = Math.floor((e.clientX - rect.left) / cell);
+  const y = Math.floor((e.clientY - rect.top) / cell);
+  if (x < 0 || y < 0 || x >= size || y >= size) return;
+
+  const strength = lowering ? -1.5 : 1.5;
+  const r = Math.floor(brushSize / 2);
+
+  for (let dy = -r; dy <= r; dy++) {
+    for (let dx = -r; dx <= r; dx++) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx >= 0 && ny >= 0 && nx < size && ny < size) {
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist <= r) {
+          heightMap[ny][nx] += strength * (1 - dist / (r + 1));
         }
-    </script>
+      }
+    }
+  }
+  draw();
+}
 
-    <script>
-        // ========== КОНСТАНТИ ТА КОНФІГУРАЦІЯ ==========
-        const CONFIG = {
-            VERSION: '1.0.0',
-            MAX_POLYPHONY: 6,
-            FINGER_THRESHOLD: 0.05,
-            SENSITIVITY_VALUES: [0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.10, 0.12],
-            MODES: {
-                NORMAL: 'normal',
-                CALM: 'calm',
-                SINGLE: 'single'
-            }
-        };
+function setBrush(size) {
+  brushSize = size;
+  document.querySelectorAll("#brush-size button").forEach(b => b.classList.remove("active"));
+  event.target.classList.add("active");
+}
 
-        // ========== СИСТЕМНІ ЗМІННІ ==========
-        let scene, camera, renderer;
-        let hands = null;
-        let currentMode = CONFIG.MODES.NORMAL;
-        let audioStarted = false;
-        let settingsOpen = false;
-        let isRecording = false;
-        let recordStartTime = 0;
-        let recordData = [];
-        
-        // Налаштування
-        let settings = {
-            sensitivity: 5, // 1-10
-            volume: 30, // 0-100
-            facingMode: 'user',
-            savedInstrument: 'piano'
-        };
-        
-        // Аудіо система
-        let audioContext;
-        let synthPool = [];
-        let samplerPool = {};
-        let activeNotes = new Set();
-        
-        // Трекінг
-        let activeFingers = [];
-        let lastFingerCount = 0;
-        let fingerObjects = [];
-        
-        // DOM елементи
-        const elements = {
-            loadingOverlay: document.getElementById('loadingOverlay'),
-            loadingText: document.getElementById('loadingText'),
-            progressFill: document.getElementById('progressFill'),
-            statusPanel: document.getElementById('statusPanel'),
-            fingerDisplay: document.getElementById('fingerDisplay'),
-            fingerCount: document.getElementById('fingerCount'),
-            fingerCounter: document.getElementById('fingerCounter'),
-            progressCircle: document.getElementById('progressCircle'),
-            progressRing: document.getElementById('progressRing'),
-            confetti: document.getElementById('confetti'),
-            cameraView: document.getElementById('cameraView'),
-            cameraContainer: document.getElementById('cameraContainer'),
-            canvas3d: document.getElementById('canvas3d'),
-            instrumentsGrid: document.getElementById('instrumentsGrid'),
-            settingsPanel: document.getElementById('settingsPanel'),
-            sensitivitySlider: document.getElementById('sensitivitySlider'),
-            volumeSlider: document.getElementById('volumeSlider'),
-            modeSelect: document.getElementById('modeSelect'),
-            audioBtn: document.getElementById('audioBtn'),
-            cameraBtn: document.getElementById('cameraBtn'),
-            recordBtn: document.getElementById('recordBtn')
-        };
+// Процеси
+function uplift() {
+  for (let i = 0; i < 400; i++) heightMap[rand()][rand()] += 3;
+  draw();
+}
 
-        // ========== ІНСТРУМЕНТИ КОНФІГ ==========
-        const INSTRUMENTS = [
-            { id: 'piano', name: '🎹 Піаніно', color: '#FF4081', type: 'sampler' },
-            { id: 'bells', name: '🔔 Дзвіночки', color: '#4CAF50', type: 'sampler' },
-            { id: 'nature', name: '🌿 Природа', color: '#2196F3', type: 'sampler' },
-            { id: 'animals', name: '🐾 Тварини', color: '#FFC107', type: 'sampler' },
-            { id: 'drums', name: '🥁 Барабани', color: '#9C27B0', type: 'synth' },
-            { id: 'synth', name: '🎛️ Синтезатор', color: '#00BCD4', type: 'synth' }
-        ];
+function fault() {
+  const fx = rand();
+  for (let y = 0; y < size; y++) {
+    for (let x = Math.max(0, fx-5); x < Math.min(size, fx+5); x++) {
+      heightMap[y][x] -= 6;
+    }
+  }
+  draw();
+}
 
-        // ========== ІНІЦІАЛІЗАЦІЯ ==========
-        async function init() {
-            updateProgress(10, "Завантаження інтерфейсу...");
-            
-            try {
-                // Завантажуємо збережені налаштування
-                loadSettings();
-                
-                // Ініціалізуємо інтерфейс
-                initUI();
-                
-                updateProgress(30, "Ініціалізація 3D...");
-                initThreeJS();
-                
-                updateProgress(50, "Підготовка аудіо...");
-                initAudio();
-                
-                updateProgress(70, "Налаштування трекінгу рук...");
-                await initHandTracking();
-                
-                updateProgress(90, "Остаточні налаштування...");
-                initEventListeners();
-                
-                updateProgress(100, "Готово!");
-                
-                // Сховати завантаження
-                setTimeout(() => {
-                    elements.loadingOverlay.style.opacity = '0';
-                    setTimeout(() => {
-                        elements.loadingOverlay.style.display = 'none';
-                        updateStatus("Натисніть 'Увімкнути звук' для початку", "warning");
-                    }, 500);
-                }, 1000);
-                
-            } catch (error) {
-                console.error("Помилка ініціалізації:", error);
-                updateStatus("Помилка завантаження. Оновіть сторінку.", "warning");
-            }
+function volcano() {
+  const cx = Math.floor(size / 2), cy = Math.floor(size / 2);
+  for (let dy = -10; dy <= 10; dy++) {
+    for (let dx = -10; dx <= 10; dx++) {
+      const d = Math.sqrt(dx*dx + dy*dy);
+      if (d < 10) {
+        const nx = cx + dx, ny = cy + dy;
+        if (nx >= 0 && ny >= 0 && nx < size && ny < size) {
+          heightMap[ny][nx] += (10 - d) * 1.2;
         }
+      }
+    }
+  }
+  draw();
+}
 
-        function updateProgress(percent, text) {
-            elements.progressFill.style.width = percent + '%';
-            elements.loadingText.textContent = text;
+function rain() {
+  const temp = heightMap.map(row => row.slice());
+  for (let y = 0; y < size - 1; y++) {
+    for (let x = 0; x < size; x++) {
+      if (temp[y][x] > temp[y+1][x] + 0.5) {
+        const diff = (temp[y][x] - temp[y+1][x]) * 0.3;
+        heightMap[y][x] -= diff;
+        heightMap[y+1][x] += diff * 0.7;
+      }
+    }
+  }
+  draw();
+}
+
+function wind() {
+  for (let y = 0; y < size; y++) {
+    for (let x = 1; x < size; x++) {
+      const transfer = heightMap[y][x] * 0.03;
+      heightMap[y][x-1] += transfer;
+      heightMap[y][x] -= transfer;
+    }
+  }
+  draw();
+}
+
+function glacier() {
+  const temp = heightMap.map(row => row.slice());
+  for (let y = 1; y < size-1; y++) {
+    for (let x = 1; x < size-1; x++) {
+      let sum = 0;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          sum += temp[y+dy][x+dx];
         }
+      }
+      heightMap[y][x] = sum / 9;
+    }
+  }
+  draw();
+}
 
-        // ========== ІНТЕРФЕЙС ==========
-        function initUI() {
-            // Створюємо кнопки інструментів
-            INSTRUMENTS.forEach(instrument => {
-                const button = document.createElement('button');
-                button.className = 'instrument-btn';
-                button.innerHTML = instrument.name;
-                button.dataset.id = instrument.id;
-                button.dataset.color = instrument.color;
-                
-                if (instrument.id === settings.savedInstrument) {
-                    button.classList.add('active');
-                }
-                
-                button.onclick = () => switchInstrument(instrument.id);
-                elements.instrumentsGrid.appendChild(button);
-            });
-            
-            // Налаштування слайдерів
-            elements.sensitivitySlider.value = settings.sensitivity;
-            elements.volumeSlider.value = settings.volume;
-            elements.modeSelect.value = currentMode;
-            
-            // Оновлення індикатора прогресу
-            updateProgressRing(0);
-        }
+function weathering() {
+  for (let i = 0; i < 600; i++) {
+    const x = rand(), y = rand();
+    if (heightMap[y][x] > 5) heightMap[y][x] -= 0.8;
+  }
+  draw();
+}
 
-        function updateStatus(message, type = 'normal') {
-            elements.statusPanel.textContent = message;
-            elements.statusPanel.className = 'status-panel';
-            
-            if (type === 'success') {
-                elements.statusPanel.classList.add('success');
-            } else if (type === 'warning') {
-                elements.statusPanel.classList.add('warning');
-            }
-        }
+function flood() {
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      if (heightMap[y][x] < 5) heightMap[y][x] -= 2;
+    }
+  }
+  draw();
+}
 
-        function updateFingerDisplay(count) {
-            const displays = ["👋", "👆", "✌️", "🤟", "🖖", "🖐️"];
-            const display = count > 5 ? "🖐️" : displays[count];
-            elements.fingerDisplay.textContent = display;
-            
-            // Зміна кольору
-            const colors = ['#FF4081', '#FF9800', '#4CAF50', '#2196F3', '#9C27B0', '#FFEB3B'];
-            elements.fingerDisplay.style.color = colors[Math.min(count, colors.length - 1)];
-            elements.fingerDisplay.style.opacity = count > 0 ? '0.8' : '0.3';
-            elements.fingerDisplay.style.fontSize = (60 + count * 8) + 'px';
-            
-            // Оновлення лічильника
-            elements.fingerCount.textContent = count;
-            updateProgressRing((count / 5) * 100);
-            
-            // Конфетті при 5 пальцях
-            if (count === 5 && lastFingerCount !== 5) {
-                triggerConfetti();
-                updateStatus("Чудово! Всі пальчики! ✨", "success");
-            }
-            
-            lastFingerCount = count;
-        }
+function earthquake() {
+  for (let i = 0; i < 500; i++) {
+    const x = rand(), y = rand();
+    heightMap[y][x] += (Math.random() - 0.5) * 10;
+  }
+  draw();
+}
 
-        function updateProgressRing(percent) {
-            const circumference = 251.2;
-            const offset = circumference - (percent / 100) * circumference;
-            elements.progressCircle.style.strokeDashoffset = offset;
-            
-            // Зміна кольору
-            let color;
-            if (percent < 20) color = '#FF4081';
-            else if (percent < 40) color = '#FF9800';
-            else if (percent < 60) color = '#FFC107';
-            else if (percent < 80) color = '#4CAF50';
-            else color = '#00E676';
-            
-            elements.progressCircle.style.stroke = color;
-        }
+function landslide() {
+  for (let y = size-2; y >= 0; y--) {
+    for (let x = 0; x < size; x++) {
+      if (heightMap[y][x] > heightMap[y+1][x] + 5) {
+        const diff = (heightMap[y][x] - heightMap[y+1][x] - 5) / 2;
+        heightMap[y][x] -= diff;
+        heightMap[y+1][x] += diff;
+      }
+    }
+  }
+  draw();
+}
 
-        function triggerConfetti() {
-            elements.confetti.classList.add('active');
-            
-            // Створюємо конфетті частинки
-            for (let i = 0; i < 100; i++) {
-                const confetti = document.createElement('div');
-                confetti.style.position = 'fixed';
-                confetti.style.width = '20px';
-                confetti.style.height = '20px';
-                confetti.style.background = ['#FF4081', '#4CAF50', '#2196F3', '#FFEB3B', '#9C27B0'][i % 5];
-                confetti.style.borderRadius = '50%';
-                confetti.style.left = Math.random() * 100 + '%';
-                confetti.style.top = '-20px';
-                confetti.style.animation = `confetti-fall ${1 + Math.random() * 2}s linear forwards`;
-                confetti.style.animationDelay = Math.random() * 2 + 's';
-                elements.confetti.appendChild(confetti);
-                
-                setTimeout(() => confetti.remove(), 7000);
-            }
-            
-            setTimeout(() => {
-                elements.confetti.classList.remove('active');
-                elements.confetti.innerHTML = '';
-            }, 5000);
-        }
+function eruption() {
+  volcano();
+  earthquake();
+  draw();
+}
 
-        // ========== THREE.JS ==========
-        function initThreeJS() {
-            // Сцена
-            scene = new THREE.Scene();
-            scene.fog = new THREE.Fog(0x1a237e, 1, 15);
-            
-            // Камера
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
-            camera.position.z = 5;
-            
-            // Рендерер
-            renderer = new THREE.WebGLRenderer({ 
-                canvas: elements.canvas3d, 
-                alpha: true, 
-                antialias: true,
-                powerPreference: "high-performance"
-            });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            
-            // Освітлення
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-            scene.add(ambientLight);
-            
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            directionalLight.position.set(10, 20, 15);
-            directionalLight.castShadow = true;
-            directionalLight.shadow.mapSize.width = 2048;
-            directionalLight.shadow.mapSize.height = 2048;
-            scene.add(directionalLight);
-            
-            // Фонові частинки
-            createBackgroundParticles();
-            
-            // Анімація
-            function animate() {
-                requestAnimationFrame(animate);
-                
-                // Анімація фонових частинок
-                if (window.particles) {
-                    window.particles.rotation.y += 0.001;
-                    window.particles.rotation.x += 0.0005;
-                }
-                
-                renderer.render(scene, camera);
-            }
-            animate();
-        }
+function randomWorld() {
+  uplift(); uplift(); volcano(); rain(); rain(); rain(); glacier(); weathering();
+  draw();
+}
 
-        function createBackgroundParticles() {
-            const particleCount = 300;
-            const positions = new Float32Array(particleCount * 3);
-            const colors = new Float32Array(particleCount * 3);
-            
-            for (let i = 0; i < particleCount * 3; i += 3) {
-                positions[i] = (Math.random() - 0.5) * 30;
-                positions[i + 1] = (Math.random() - 0.5) * 30;
-                positions[i + 2] = (Math.random() - 1) * 30;
-                
-                colors[i] = Math.random() * 0.5 + 0.5;
-                colors[i + 1] = Math.random() * 0.5 + 0.5;
-                colors[i + 2] = Math.random() * 0.5 + 0.5;
-            }
-            
-            const geometry = new THREE.BufferGeometry();
-            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-            
-            const material = new THREE.PointsMaterial({
-                size: 0.1,
-                vertexColors: true,
-                transparent: true,
-                opacity: 0.6,
-                sizeAttenuation: true
-            });
-            
-            window.particles = new THREE.Points(geometry, material);
-            scene.add(window.particles);
-        }
+function resetWorld() { init(); }
+function rand() { return Math.floor(Math.random() * size); }
 
-        function createFingerEffect(x, y, z, color, index) {
-            // Сфера для пальця
-            const geometry = new THREE.SphereGeometry(0.15, 24, 24);
-            const material = new THREE.MeshPhongMaterial({
-                color: color,
-                emissive: color,
-                emissiveIntensity: 0.3,
-                shininess: 100,
-                transparent: true,
-                opacity: 0.9
-            });
-            
-            const sphere = new THREE.Mesh(geometry, material);
-            sphere.position.set(x, y, z);
-            sphere.castShadow = true;
-            scene.add(sphere);
-            fingerObjects.push(sphere);
-            
-            // Світло для пальця
-            const light = new THREE.PointLight(color, 1, 3);
-            light.position.set(x, y, z);
-            scene.add(light);
-            
-            // Анімація
-            const startTime = Date.now();
-            const scale = 0.5 + index * 0.1;
-            
-            function animate() {
-                const elapsed = Date.now() - startTime;
-                
-                if (elapsed > 1500) {
-                    scene.remove(sphere);
-                    scene.remove(light);
-                    const sphereIndex = fingerObjects.indexOf(sphere);
-                    if (sphereIndex > -1) fingerObjects.splice(sphereIndex, 1);
-                    return;
-                }
-                
-                // Пульсація
-                const pulse = 1 + Math.sin(elapsed * 0.01) * 0.2;
-                sphere.scale.setScalar(scale * pulse);
-                
-                // Обертання
-                sphere.rotation.y = elapsed * 0.002;
-                sphere.rotation.x = elapsed * 0.001;
-                
-                // Зникнення
-                sphere.material.opacity = 0.9 - (elapsed / 1500) * 0.9;
-                light.intensity = 1 - (elapsed / 1500);
-                
-                requestAnimationFrame(animate);
-            }
-            
-            animate();
-        }
+init();
+</script>
 
-        // ========== АУДІО СИСТЕМА ==========
-        async function initAudio() {
-            // Чекаємо на user gesture для запуску
-            elements.audioBtn.onclick = startAudio;
-        }
-
-        async function startAudio() {
-            if (audioStarted) return;
-            
-            try {
-                // Ініціалізація Tone.js
-                await Tone.start();
-                audioStarted = true;
-                
-                // Налаштування контексту
-                Tone.Destination.volume.value = Tone.gainToDb(settings.volume / 100);
-                
-                // Створення пулів синтезаторів
-                createSynthPool();
-                
-                // Завантаження семплерів
-                await loadSamplers();
-                
-                elements.audioBtn.textContent = "🔊 Звук увімкнено";
-                elements.audioBtn.disabled = true;
-                updateStatus("Звук готовий! Покажи пальчики камері 🖐️", "success");
-                
-                // Тестовий звук
-                playTestSound();
-                
-            } catch (error) {
-                console.error("Помилка аудіо:", error);
-                updateStatus("Не вдалося увімкнути звук", "warning");
-            }
-        }
-
-        function createSynthPool() {
-            // Пул з 6 синтезаторів (за CONFIG.MAX_POLYPHONY)
-            for (let i = 0; i < CONFIG.MAX_POLYPHONY; i++) {
-                const synth = new Tone.Synth({
-                    oscillator: { type: "sine" },
-                    envelope: {
-                        attack: 0.01,
-                        decay: 0.1,
-                        sustain: 0.3,
-                        release: 0.5
-                    }
-                }).connect(Tone.Destination);
-                
-                synthPool.push({
-                    synth: synth,
-                    available: true,
-                    note: null
-                });
-            }
-        }
-
-        async function loadSamplers() {
-            // Семплери для різних інструментів
-            const samplerConfigs = {
-                piano: {
-                    baseUrl: 'https://tonejs.github.io/audio/salamander/',
-                    urls: {
-                        'C3': 'C3.mp3',
-                        'D3': 'D3.mp3',
-                        'E3': 'E3.mp3',
-                        'F3': 'F3.mp3',
-                        'G3': 'G3.mp3'
-                    }
-                },
-                bells: {
-                    baseUrl: 'https://tonejs.github.io/audio/casio/',
-                    urls: {
-                        'C5': 'C5.mp3',
-                        'E5': 'E5.mp3',
-                        'G5': 'G5.mp3'
-                    }
-                }
-            };
-            
-            // Створюємо семплери
-            for (const [id, config] of Object.entries(samplerConfigs)) {
-                samplerPool[id] = new Tone.Sampler(config.urls, {
-                    baseUrl: config.baseUrl,
-                    onload: () => {
-                        console.log(`${id} sampler loaded`);
-                        samplerPool[id].connect(Tone.Destination);
-                    }
-                });
-            }
-            
-            // Для інших інструментів використовуємо синтезатори
-            samplerPool.nature = new Tone.FMSynth({
-                harmonicity: 3,
-                modulationIndex: 10,
-                oscillator: { type: "sine" },
-                envelope: {
-                    attack: 0.5,
-                    decay: 0.5,
-                    sustain: 0.3,
-                    release: 2
-                }
-            }).connect(Tone.Destination);
-            
-            samplerPool.animals = new Tone.MembraneSynth().connect(Tone.Destination);
-            samplerPool.drums = new Tone.NoiseSynth({
-                noise: { type: "white" },
-                envelope: {
-                    attack: 0.001,
-                    decay: 0.1,
-                    sustain: 0
-                }
-            }).connect(Tone.Destination);
-            
-            samplerPool.synth = new Tone.AMSynth().connect(Tone.Destination);
-        }
-
-        function playSound(note, instrumentId, duration = '8n') {
-            if (!audioStarted) return;
-            
-            const now = Tone.now();
-            const durationMs = Tone.Time(duration).toMilliseconds();
-            
-            // Обмеження для режиму "По одному звуку"
-            if (currentMode === CONFIG.MODES.SINGLE && activeNotes.size >= 1) {
-                return;
-            }
-            
-            // Обмеження для спокійного режиму
-            if (currentMode === CONFIG.MODES.CALM && activeNotes.size >= 2) {
-                return;
-            }
-            
-            // Грамо за допомогою семплера або синтезатора
-            if (samplerPool[instrumentId]) {
-                if (instrumentId === 'piano' || instrumentId === 'bells') {
-                    samplerPool[instrumentId].triggerAttackRelease(note, duration, now);
-                } else {
-                    // Для інших інструментів
-                    const pitches = ['C3', 'D3', 'E3', 'F3', 'G3'];
-                    const pitch = pitches[Math.floor(Math.random() * pitches.length)];
-                    samplerPool[instrumentId].triggerAttackRelease(pitch, duration, now);
-                }
-            }
-            
-            activeNotes.add(note);
-            
-            // Автоматичне очищення
-            setTimeout(() => {
-                activeNotes.delete(note);
-            }, durationMs + 100);
-        }
-
-        function playTestSound() {
-            if (!audioStarted) return;
-            
-            setTimeout(() => {
-                playSound('C4', settings.savedInstrument, '8n');
-            }, 300);
-        }
-
-        // ========== ТРЕКІНГ РУК ==========
-        async function initHandTracking() {
-            try {
-                hands = new Hands({
-                    locateFile: (file) => {
-                        // Спроба локального завантаження WASM
-                        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
-                    }
-                });
-                
-                hands.setOptions({
-                    maxNumHands: 1,
-                    modelComplexity: 0,
-                    minDetectionConfidence: 0.5,
-                    minTrackingConfidence: 0.5,
-                    selfieMode: true
-                });
-                
-                hands.onResults(onHandResults);
-                
-                // Запуск камери
-                await startCamera();
-                
-            } catch (error) {
-                console.warn("Помилка трекінгу:", error);
-                enableTouchMode();
-            }
-        }
-
-        async function startCamera() {
-            try {
-                const constraints = {
-                    video: { 
-                        facingMode: settings.facingMode,
-                        width: { ideal: 640 },
-                        height: { ideal: 480 },
-                        frameRate: { ideal: 30 }
-                    }
-                };
-                
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                elements.cameraView.srcObject = stream;
-                
-                // Обробка кадрів
-                async function processFrame() {
-                    if (elements.cameraView.readyState >= 2) {
-                        try {
-                            await hands.send({ image: elements.cameraView });
-                        } catch (e) {
-                            console.warn("Помилка обробки кадру:", e);
-                        }
-                    }
-                    requestAnimationFrame(processFrame);
-                }
-                
-                elements.cameraView.onloadeddata = processFrame;
-                updateStatus("Камера активна! Покажи пальчики 👆", "success");
-                
-            } catch (error) {
-                console.warn("Помилка камери:", error);
-                updateStatus("Камера не доступна. Використовуйте торкання", "warning");
-                enableTouchMode();
-            }
-        }
-
-        function onHandResults(results) {
-            if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
-                updateFingerDisplay(0);
-                return;
-            }
-            
-            const landmarks = results.multiHandLandmarks[0];
-            const raisedFingers = detectRaisedFingers(landmarks);
-            
-            // Оновлення інтерфейсу
-            updateFingerDisplay(raisedFingers.length);
-            
-            // Відтворення звуків
-            if (audioStarted && raisedFingers.length > 0) {
-                playFingerSounds(raisedFingers);
-            }
-            
-            // Візуальні ефекти
-            createHandEffects(landmarks, raisedFingers);
-            
-            // Запис сесії
-            if (isRecording) {
-                recordSessionData(raisedFingers);
-            }
-        }
-
-        function detectRaisedFingers(landmarks) {
-            const raised = [];
-            const threshold = CONFIG.SENSITIVITY_VALUES[settings.sensitivity - 1];
-            
-            const fingerTips = [4, 8, 12, 16, 20];
-            const fingerBases = [2, 5, 9, 13, 17];
-            
-            fingerTips.forEach((tipIndex, fingerIndex) => {
-                const tip = landmarks[tipIndex];
-                const base = landmarks[fingerBases[fingerIndex]];
-                
-                if (tip.y < base.y - threshold) {
-                    raised.push({
-                        index: fingerIndex,
-                        name: ['Великий', 'Вказівний', 'Середній', 'Безіменний', 'Мізинець'][fingerIndex],
-                        position: tip
-                    });
-                }
-            });
-            
-            return raised;
-        }
-
-        function playFingerSounds(fingers) {
-            const notes = ['C3', 'D3', 'E3', 'F3', 'G3'];
-            
-            fingers.forEach((finger, index) => {
-                // Затримка для кращого звучання
-                setTimeout(() => {
-                    const note = notes[finger.index % notes.length];
-                    playSound(note, settings.savedInstrument, currentMode === CONFIG.MODES.CALM ? '4n' : '8n');
-                }, index * 50);
-            });
-        }
-
-        function createHandEffects(landmarks, fingers) {
-            // Очищення старих об'єктів
-            fingerObjects.forEach(obj => scene.remove(obj));
-            fingerObjects = [];
-            
-            // Створення нових ефектів
-            fingers.forEach((finger, index) => {
-                const x = (finger.position.x * 2 - 1) * 5;
-                const y = -(finger.position.y * 2 - 1) * 3;
-                const z = -2;
-                
-                // Колір залежно від інструмента
-                const instrument = INSTRUMENTS.find(i => i.id === settings.savedInstrument);
-                const color = new THREE.Color(instrument ? instrument.color : '#FF4081');
-                
-                createFingerEffect(x, y, z, color, index);
-            });
-        }
-
-        // ========== ТОРКАННЯ ==========
-        function enableTouchMode() {
-            document.addEventListener('touchstart', handleTouch);
-            document.addEventListener('mousedown', handleTouch);
-            updateStatus("Торкайтеся екрану пальцями 👇", "warning");
-        }
-
-        function handleTouch(event) {
-            event.preventDefault();
-            
-            // Автоматичний запуск аудіо
-            if (!audioStarted) {
-                startAudio();
-                return;
-            }
-            
-            const x = event.clientX || (event.touches && event.touches[0].clientX);
-            const y = event.clientY || (event.touches && event.touches[0].clientY);
-            
-            if (!x || !y) return;
-            
-            // Визначення пальця
-            const sectionWidth = window.innerWidth / 5;
-            const fingerIndex = Math.min(4, Math.floor(x / sectionWidth));
-            
-            // Оновлення інтерфейсу
-            updateFingerDisplay(1);
-            
-            // Відтворення звуку
-            const notes = ['C3', 'D3', 'E3', 'F3', 'G3'];
-            const note = notes[fingerIndex % notes.length];
-            playSound(note, settings.savedInstrument);
-            
-            // Візуальний ефект
-            const xPos = (x / window.innerWidth) * 10 - 5;
-            const yPos = -(y / window.innerHeight) * 6 + 3;
-            const instrument = INSTRUMENTS.find(i => i.id === settings.savedInstrument);
-            const color = new THREE.Color(instrument ? instrument.color : '#FF4081');
-            
-            createFingerEffect(xPos, yPos, -2, color, fingerIndex);
-        }
-
-        // ========== НАЛАШТУВАННЯ ==========
-        function toggleSettings() {
-            settingsOpen = !settingsOpen;
-            elements.settingsPanel.classList.toggle('active');
-        }
-
-        function saveSettings() {
-            settings.sensitivity = parseInt(elements.sensitivitySlider.value);
-            settings.volume = parseInt(elements.volumeSlider.value);
-            currentMode = elements.modeSelect.value;
-            
-            // Застосування гучності
-            if (audioStarted) {
-                Tone.Destination.volume.value = Tone.gainToDb(settings.volume / 100);
-            }
-            
-            // Застосування режиму
-            document.body.classList.toggle('calm-mode', currentMode === CONFIG.MODES.CALM);
-            
-            // Збереження в localStorage
-            localStorage.setItem('ras-therapy-settings', JSON.stringify(settings));
-            localStorage.setItem('ras-therapy-mode', currentMode);
-            
-            updateStatus("Налаштування збережено", "success");
-        }
-
-        function loadSettings() {
-            const savedSettings = localStorage.getItem('ras-therapy-settings');
-            const savedMode = localStorage.getItem('ras-therapy-mode');
-            const savedInstrument = localStorage.getItem('ras-therapy-instrument');
-            
-            if (savedSettings) {
-                Object.assign(settings, JSON.parse(savedSettings));
-            }
-            
-            if (savedMode) {
-                currentMode = savedMode;
-            }
-            
-            if (savedInstrument) {
-                settings.savedInstrument = savedInstrument;
-            }
-        }
-
-        // ========== КЕРУВАННЯ ==========
-        function switchInstrument(instrumentId) {
-            settings.savedInstrument = instrumentId;
-            
-            // Оновлення кнопок
-            document.querySelectorAll('.instrument-btn').forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.dataset.id === instrumentId) {
-                    btn.classList.add('active');
-                }
-            });
-            
-            // Збереження
-            localStorage.setItem('ras-therapy-instrument', instrumentId);
-            
-            // Тестовий звук
-            if (audioStarted) {
-                playTestSound();
-            }
-            
-            updateStatus(`Інструмент: ${INSTRUMENTS.find(i => i.id === instrumentId).name}`);
-        }
-
-        function toggleCamera() {
-            settings.facingMode = settings.facingMode === 'user' ? 'environment' : 'user';
-            elements.cameraBtn.textContent = settings.facingMode === 'user' ? '📷 Фронтальна' : '📷 Задня';
-            
-            // Перезапуск камери
-            if (elements.cameraView.srcObject) {
-                elements.cameraView.srcObject.getTracks().forEach(track => track.stop());
-                startCamera();
-            }
-        }
-
-        function startRecording() {
-            if (isRecording) {
-                stopRecording();
-                return;
-            }
-            
-            isRecording = true;
-            recordStartTime = Date.now();
-            recordData = [];
-            elements.recordBtn.textContent = '⏹️ Зупинити запис';
-            elements.recordBtn.classList.add('secondary');
-            
-            updateStatus("Запис сесії (30 секунд)...", "warning");
-            
-            // Автоматична зупинка через 30 секунд
-            setTimeout(() => {
-                if (isRecording) {
-                    stopRecording();
-                }
-            }, 30000);
-        }
-
-        function stopRecording() {
-            isRecording = false;
-            elements.recordBtn.textContent = '⏺️ Запис (30с)';
-            elements.recordBtn.classList.remove('secondary');
-            
-            // Аналіз даних
-            const duration = (Date.now() - recordStartTime) / 1000;
-            const totalFingers = recordData.reduce((sum, data) => sum + data.fingerCount, 0);
-            const avgFingers = totalFingers / recordData.length || 0;
-            
-            // Збереження результату
-            const sessionResult = {
-                date: new Date().toISOString(),
-                duration: duration,
-                avgFingers: avgFingers.toFixed(1),
-                maxFingers: Math.max(...recordData.map(d => d.fingerCount))
-            };
-            
-            // Збереження в localStorage
-            let sessions = JSON.parse(localStorage.getItem('ras-therapy-sessions') || '[]');
-            sessions.push(sessionResult);
-            localStorage.setItem('ras-therapy-sessions', JSON.stringify(sessions));
-            
-            updateStatus(`Сесія завершена! Середньо: ${avgFingers.toFixed(1)} пальців`, "success");
-            
-            // Показ результатів
-            setTimeout(() => {
-                alert(
-                    `📊 Результати сесії:\n\n` +
-                    `Час: ${duration.toFixed(0)} секунд\n` +
-                    `Середня кількість пальців: ${avgFingers.toFixed(1)}\n` +
-                    `Максимум пальців: ${sessionResult.maxFingers}\n\n` +
-                    `Результат збережено!`
-                );
-            }, 500);
-        }
-
-        function recordSessionData(fingers) {
-            recordData.push({
-                timestamp: Date.now(),
-                fingerCount: fingers.length
-            });
-        }
-
-        function showHelp() {
-            alert(
-                "🎵 МУЗИЧНА ТЕРАПІЯ ДЛЯ РАС-ДІТЕЙ\n\n" +
-                "🎯 МЕТА: Розвиток дрібної моторики, сенсорної інтеграції та координації\n\n" +
-                "👆 ЯК ВИКОРИСТОВУВАТИ:\n" +
-                "1. Увімкніть звук (одного разу)\n" +
-                "2. Покажіть пальчики камері\n" +
-                "3. Кожен палець — свій звук\n" +
-                "4. Спробуйте різні інструменти\n" +
-                "5. Використовуйте торкання, якщо камера не працює\n\n" +
-                "⚙️ РЕЖИМИ:\n" +
-                "• Нормальний — всі функції\n" +
-                "• Спокійний — тихі звуки, сповільнені анімації\n" +
-                "• По одному — лише один звук одночасно\n\n" +
-                "📊 ФУНКЦІЇ:\n" +
-                "• Запис сесії (30 сек) — відстеження прогресу\n" +
-                "• Налаштування чутливості\n" +
-                "• Перемикання камери\n" +
-                "• Збереження обраного інструменту\n\n" +
-                "🌟 ТЕРАПЕВТИЧНІ ЕФЕКТИ:\n" +
-                "• Розвиток ізоляції пальців\n" \\
-                "• Поліпшення координації рука-око\n" \\
-                "• Сенсорна стимуляція (зір, слух, пропріоцепція)\n" \\
-                "• Позитивне підкріплення через музику\n\n" +
-                "Додаток працює офлайн після завантаження!"
-            );
-        }
-
-        // ========== EVENT LISTENERS ==========
-        function initEventListeners() {
-            // Налаштування
-            elements.sensitivitySlider.addEventListener('input', saveSettings);
-            elements.volumeSlider.addEventListener('input', saveSettings);
-            elements.modeSelect.addEventListener('change', saveSettings);
-            
-            // Ресайз вікна
-            window.addEventListener('resize', () => {
-                if (camera && renderer) {
-                    camera.aspect = window.innerWidth / window.innerHeight;
-                    camera.updateProjectionMatrix();
-                    renderer.setSize(window.innerWidth, window.innerHeight);
-                }
-            });
-            
-            // PWA: Додати на домашній екран
-            window.addEventListener('beforeinstallprompt', (e) => {
-                e.preventDefault();
-                updateStatus("💡 Можна додати на домашній екран!", "success");
-            });
-        }
-
-        // ========== ЗАПУСК ==========
-        window.addEventListener('load', init);
-    </script>
 </body>
 </html>
