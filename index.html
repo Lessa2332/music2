@@ -1,442 +1,729 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Творець Світів — Геологічний симулятор</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>🥚 Писанка на долоні 🎨</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      touch-action: manipulation;
+    }
+    body {
+      background: linear-gradient(135deg, #8A2BE2 0%, #4B0082 100%);
+      overflow: hidden;
+      font-family: 'Comic Neue', 'Comic Sans MS', cursive, sans-serif;
+      color: white;
+    }
+    #video, #canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    #video { z-index: 1; display: none; }
+    #canvas { z-index: 2; display: none; }
 
-<style>
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: #0e1b24;
-  color: #fff;
-  text-align: center;
-  touch-action: manipulation;
-}
+    #loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #8A2BE2 0%, #4B0082 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      color: white;
+      text-align: center;
+      padding: 20px;
+    }
+    .loader {
+      width: 60px;
+      height: 60px;
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      border-top: 4px solid #FFD700;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
 
-h1 { margin: 12px; }
+    #eggText {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: #FFD700;
+      padding: 15px 25px;
+      border-radius: 20px;
+      font-size: 1.3em;
+      font-weight: bold;
+      z-index: 85;
+      text-align: center;
+      border: 2px solid #FFD700;
+      display: none;
+      max-width: 90%;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 0 25px rgba(255, 215, 0, 0.6);
+      text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
 
-#container {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 20px;
-  padding: 10px;
-}
+    #handIndicator {
+      position: fixed;
+      top: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: #FFD700;
+      padding: 15px 25px;
+      border-radius: 20px;
+      border: 2px solid rgba(255, 215, 0, 0.5);
+      display: none;
+      align-items: center;
+      gap: 12px;
+      z-index: 99;
+      font-size: 17px;
+      font-weight: bold;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
 
-canvas {
-  border: 3px solid #fff;
-  border-radius: 8px;
-  box-shadow: 0 0 20px rgba(0,0,0,0.8);
-  touch-action: none;
-}
+    #eggStatus {
+      position: fixed;
+      top: 85px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 20px;
+      font-size: 17px;
+      z-index: 100;
+      display: none;
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 0 20px rgba(76, 175, 80, 0.8);
+      text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    }
 
-.controls {
-  min-width: 320px;
-  max-width: 360px;
-  padding: 15px;
-  background: rgba(255,255,255,0.05);
-  border-radius: 10px;
-  text-align: left;
-}
+    .controls {
+      position: fixed;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      display: flex;
+      gap: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 15px;
+      border-radius: 20px;
+      backdrop-filter: blur(10px);
+    }
 
-.controls h3 {
-  margin: 15px 0 8px;
-  color: #ffd966;
-  font-size: 18px;
-}
+    .control-btn {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 15px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 1em;
+      font-weight: bold;
+      transition: all 0.3s ease;
+      background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+      color: white;
+      min-width: 120px;
+    }
 
-button {
-  width: 100%;
-  margin: 5px 0;
-  padding: 10px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 15px;
-  transition: transform 0.1s;
-}
+    .control-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    }
 
-button:active { transform: scale(0.98); }
+    .control-btn.off {
+      background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+    }
 
-.internal { background: #c0392b; color: #fff; }
-.external { background: #2980b9; color: #fff; }
-.disaster { background: #8e44ad; color: #fff; }
-.utility  { background: #27ae60; color: #fff; }
+    .youtube-btn {
+      background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
 
-#view-mode {
-  display: flex;
-  gap: 10px;
-  margin: 10px 0;
-}
-
-#view-mode button {
-  flex: 1;
-  background: #34495e;
-  padding: 10px;
-  font-size: 15px;
-}
-
-#view-mode button.active {
-  background: #ffd966;
-  color: #000;
-  font-weight: bold;
-}
-
-#brush-size {
-  display: flex;
-  gap: 10px;
-  margin: 10px 0;
-}
-
-#brush-size button {
-  flex: 1;
-  background: #34495e;
-  padding: 8px;
-  font-size: 14px;
-}
-
-#brush-size button.active {
-  background: #ffd966;
-  color: #000;
-}
-
-#info {
-  font-size: 13px;
-  margin-top: 12px;
-  opacity: 0.9;
-  line-height: 1.4;
-}
-</style>
+    @keyframes spin { 
+      0% { transform: rotate(0deg); } 
+      100% { transform: rotate(360deg); } 
+    }
+  </style>
 </head>
-
 <body>
+  <div id="loading">
+    <div class="loader"></div>
+    <div style="font-size: 1.5em; margin-bottom: 10px;">🥚 Завантаження Писанки...</div>
+    <p style="margin-top: 20px; color: rgba(255,255,255,0.9);">Покажіть долоню камері</p>
+  </div>
 
-<h1>🌍 Творець Світів</h1>
-<p>Інтерактивна геологічна симуляція (НУШ)</p>
+  <video id="video" playsinline muted></video>
+  <canvas id="canvas"></canvas>
 
-<div id="container">
-  <canvas id="world" width="600" height="600"></canvas>
+  <div id="eggText">🥚 Писанка на вашій долоні! 🎨</div>
+  <div id="eggStatus">✨ Писанка обертається</div>
+  <div id="handIndicator">👋 Покажіть долоню камері</div>
 
   <div class="controls">
-    <h3>👁️ Режим перегляду</h3>
-    <div id="view-mode">
-      <button class="active" onclick="setViewMode('top')">Карта зверху</button>
-      <button onclick="setViewMode('cross')">Геологічний розріз</button>
-    </div>
-
-    <h3>🖌️ Малювання (тільки в режимі карти)</h3>
-    <div id="brush-size">
-      <button class="active" onclick="setBrush(1)">Мала</button>
-      <button onclick="setBrush(3)">Середня</button>
-      <button onclick="setBrush(5)">Велика</button>
-    </div>
-    <p style="font-size:13px;margin:8px 0;">✋ Малюй мишею/пальцем<br>↕️ Shift — опускати</p>
-
-    <h3>🔴 Внутрішні процеси</h3>
-    <button class="internal" onclick="uplift()">⬆️ Тектонічне підняття</button>
-    <button class="internal" onclick="fault()">⚡ Розлом (зигзаг)</button>
-    <button class="internal" onclick="volcano()">🌋 Вулкан</button>
-
-    <h3>🔵 Зовнішні процеси</h3>
-    <button class="external" onclick="rain()">🌧 Річкова ерозія</button>
-    <button class="external" onclick="wind()">🌬 Вітрова ерозія</button>
-    <button class="external" onclick="glacier()">🧊 Зледеніння</button>
-    <button class="external" onclick="weathering()">🪨 Вивітрювання</button>
-
-    <h3>🚨 Катастрофи</h3>
-    <button class="disaster" onclick="flood()">🌊 Повінь</button>
-    <button class="disaster" onclick="earthquake()">🌐 Землетрус</button>
-    <button class="disaster" onclick="landslide()">⬇️ Зсув</button>
-    <button class="disaster" onclick="eruption()">🔥 Виверження</button>
-
-    <h3>⚙️ Керування</h3>
-    <button class="utility" onclick="resetWorld()">🔄 Очистити</button>
-    <button class="utility" onclick="randomWorld()">🎲 Випадковий світ</button>
-
-    <div id="info">
-      🔴 У режимі розрізу видно кору та мантію!<br>
-      🌋 Глибокі розломи оголюють магму<br>
-      💡 Спробуй розлом → вулкан → ерозію
-    </div>
+    <button id="sound-btn" class="control-btn">🔊 Увімкнути звук</button>
+    <button id="next-btn" class="control-btn">🎨 Наступна писанка</button>
+    <a href="https://www.youtube.com/playlist?list=PL6UDFwT9TzFw5K8Tzu_OgsDz7vV3N9eY-" target="_blank" class="control-btn youtube-btn">📺 SmartLessa</a>
   </div>
-</div>
 
-<script>
-const canvas = document.getElementById("world");
-const ctx = canvas.getContext("2d");
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.158.0/build/three.module.js';
+    import { FilesetResolver, HandLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm";
 
-const size = 120;
-const cell = canvas.width / size;
-let heightMap = [];
-let brushSize = 1;
-let lowering = false;
-let viewMode = 'top'; // 'top' або 'cross'
+    const CONFIG = {
+      SMOOTHING_FACTOR: 0.6,
+      HAND_NOT_DETECTED_THRESHOLD: 30,
+      EGG_SCALE: 0.35, // ЗБІЛЬШЕНО РОЗМІР
+      EGG_HEIGHT_OFFSET: 0.4,
+      ROTATION_SPEED: 1.0,
+      DEBUG_MODE: false,
+      textureUrls: [
+        'pisanka.jpg',
+        'pisanka-1.jpg',
+        'pisanka-2.jpg', 
+        'pisanka-3.jpg',
+        'pisanka-4.jpg',
+        'pisanka-5.jpg'
+      ]
+    };
 
-function init() {
-  heightMap = Array.from({length: size}, () => Array(size).fill(0));
-  draw();
-}
+    // Стан додатку
+    const state = {
+      landmarks: null,
+      isHandVisible: false,
+      handFrames: 0,
+      audioContext: null,
+      analyser: null,
+      animationId: null,
+      time: 0,
+      pisankaTextures: [],
+      currentTextureIndex: 0,
+      egg: null,
+      eggGroup: null,
+      isSoundOn: false
+    };
 
-function getSurfaceColor(h) {
-  if (h <= -8) return "#001133";
-  if (h <= -2) return "#003366";
-  if (h <= 0)  return "#006699";
-  if (h <= 3)  return "#66b2ff";
-  if (h <= 10) return "#b3ff99";
-  if (h <= 20) return "#99cc66";
-  if (h <= 35) return "#b3863d";
-  if (h <= 50) return "#888888";
-  return "#ffffff";
-}
+    // DOM елементи
+    const elements = {
+      video: document.getElementById('video'),
+      canvas: document.getElementById('canvas'),
+      loading: document.getElementById('loading'),
+      eggText: document.getElementById('eggText'),
+      eggStatus: document.getElementById('eggStatus'),
+      handIndicator: document.getElementById('handIndicator'),
+      soundBtn: document.getElementById('sound-btn'),
+      nextBtn: document.getElementById('next-btn')
+    };
 
-function drawTopView() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Three.js змінні
+    let scene, camera, renderer;
+    let handLandmarker;
+    let bgMusic = new Audio('bg-music.mp3');
+    bgMusic.loop = true;
 
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const h = heightMap[y][x];
-      ctx.fillStyle = getSurfaceColor(h);
-      ctx.fillRect(x * cell, y * cell, cell, cell);
-    }
-  }
-
-  // Вода
-  ctx.fillStyle = "rgba(0, 100, 200, 0.4)";
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      if (heightMap[y][x] <= 0) {
-        ctx.fillRect(x * cell, y * cell, cell, cell);
+    class PisankaARApp {
+      constructor() {
+        this.init();
       }
-    }
-  }
 
-  drawDynamicLabels();
-}
-
-function drawCrossSection() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  const centerY = Math.floor(size / 2);
-  const profile = heightMap[centerY];
-
-  const verticalScale = 6; // збільшене вертикальне масштабування
-  const crustThickness = 15;
-  const baseY = canvas.height * 0.8; // рівень мантії
-
-  // Фон мантії
-  const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  gradient.addColorStop(0, "#ff5500");
-  gradient.addColorStop(0.6, "#ff2200");
-  gradient.addColorStop(1, "#880000");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, baseY - crustThickness * verticalScale, canvas.width, canvas.height);
-
-  // Кора (літосфера)
-  ctx.fillStyle = "#8b7355";
-  ctx.fillRect(0, baseY - crustThickness * verticalScale, canvas.width, crustThickness * verticalScale);
-
-  // Поверхня + рельєф
-  ctx.beginPath();
-  ctx.moveTo(0, baseY);
-  for (let x = 0; x < size; x++) {
-    const h = profile[x];
-    const y = baseY - h * verticalScale;
-    ctx.lineTo(x * cell, y);
-
-    // Магма при глибоких розломах
-    if (h < -15) {
-      ctx.fillStyle = "#ff3300";
-      ctx.fillRect(x * cell - cell/2, y, cell, baseY - y + 50);
-    }
-  }
-  ctx.lineTo(canvas.width, baseY);
-  ctx.lineTo(0, baseY);
-  ctx.closePath();
-
-  // Заливка рельєфу
-  const reliefGrad = ctx.createLinearGradient(0, 0, 0, baseY);
-  reliefGrad.addColorStop(0, "#ffffff");
-  reliefGrad.addColorStop(0.3, "#888888");
-  reliefGrad.addColorStop(0.5, "#b3863d");
-  reliefGrad.addColorStop(0.7, "#99cc66");
-  reliefGrad.addColorStop(1, "#006699");
-  ctx.fillStyle = reliefGrad;
-  ctx.fill();
-
-  // Вода в розрізі
-  ctx.fillStyle = "rgba(0, 120, 255, 0.5)";
-  ctx.fillRect(0, baseY - 5 * verticalScale, canvas.width, 5 * verticalScale);
-
-  // Лінія розрізу (позначка)
-  ctx.strokeStyle = "#ffd966";
-  ctx.lineWidth = 3;
-  ctx.setLineDash([10, 5]);
-  ctx.beginPath();
-  ctx.moveTo(0, baseY);
-  ctx.lineTo(canvas.width, baseY);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  // Підпис
-  ctx.fillStyle = "white";
-  ctx.font = "bold 20px Arial";
-  ctx.textAlign = "center";
-  ctx.fillText("Геологічний розріз по центру", canvas.width/2, 40);
-  ctx.font = "16px Arial";
-  ctx.fillText("← Мантія | Кора | Поверхня →", canvas.width/2, canvas.height - 20);
-}
-
-function draw() {
-  if (viewMode === 'top') {
-    drawTopView();
-  } else {
-    drawCrossSection();
-  }
-}
-
-function drawDynamicLabels() {
-  ctx.fillStyle = "rgba(0,0,0,0.6)";
-  ctx.fillRect(4, 4, 160, 92);
-  ctx.strokeStyle = "#fff";
-  ctx.lineWidth = 2;
-  ctx.strokeRect(4, 4, 160, 92);
-
-  ctx.fillStyle = "white";
-  ctx.font = "bold 14px Arial";
-  ctx.textAlign = "left";
-
-  let hasMountains = false, hasPlains = false, hasOcean = false;
-  for (let row of heightMap) {
-    for (let h of row) {
-      if (h > 35) hasMountains = true;
-      if (h > 0 && h <= 20) hasPlains = true;
-      if (h <= 0) hasOcean = true;
-    }
-  }
-
-  let offset = 20;
-  if (hasMountains) { ctx.fillText("⛰ Гори", 12, offset); offset += 22; }
-  if (hasPlains)    { ctx.fillText("▭ Рівнини", 12, offset); offset += 22; }
-  if (hasOcean)     { ctx.fillText("🌊 Океан", 12, offset); }
-}
-
-// Малювання (тільки в режимі карти)
-canvas.addEventListener("pointerdown", e => { if (viewMode === 'top') sculpt(e); });
-canvas.addEventListener("pointermove", e => { if (viewMode === 'top' && (e.buttons === 1 || e.pointerType === "touch")) sculpt(e); });
-
-document.addEventListener("keydown", e => { if (e.key === "Shift") lowering = true; });
-document.addEventListener("keyup", e => { if (e.key === "Shift") lowering = false; });
-
-function sculpt(e) {
-  const rect = canvas.getBoundingClientRect();
-  const x = Math.floor((e.clientX - rect.left) / cell);
-  const y = Math.floor((e.clientY - rect.top) / cell);
-  if (x < 0 || y < 0 || x >= size || y >= size) return;
-
-  const strength = lowering ? -1.8 : 1.8;
-  const r = Math.floor(brushSize / 2);
-
-  for (let dy = -r; dy <= r; dy++) {
-    for (let dx = -r; dx <= r; dx++) {
-      const nx = x + dx, ny = y + dy;
-      if (nx >= 0 && ny >= 0 && nx < size && ny < size) {
-        const dist = Math.sqrt(dx*dx + dy*dy);
-        if (dist <= r) {
-          heightMap[ny][nx] += strength * (1 - dist / (r + 1));
+      async init() {
+        try {
+          await this.setupCamera();
+          await this.initThreeJS();
+          await this.initHandTracking();
+          this.setupEventListeners();
+          this.hideLoading();
+          this.startAnimation();
+        } catch (error) {
+          console.error('Помилка ініціалізації:', error);
+          this.showError('Перезавантажте сторінку та дозвольте доступ до камери');
         }
       }
-    }
-  }
-  draw();
-}
 
-function setBrush(s) {
-  brushSize = s;
-  document.querySelectorAll("#brush-size button").forEach(b => b.classList.remove("active"));
-  event.target.classList.add("active");
-}
-
-function setViewMode(mode) {
-  viewMode = mode;
-  document.querySelectorAll("#view-mode button").forEach(b => b.classList.remove("active"));
-  event.target.classList.add("active");
-  draw();
-}
-
-// Процеси
-function uplift() {
-  for (let i = 0; i < 500; i++) heightMap[rand()][rand()] += 3;
-  draw();
-}
-
-function fault() {
-  let x = rand();
-  let deviation = 0;
-  for (let y = 0; y < size; y++) {
-    deviation += (Math.random() - 0.5) * 6;
-    deviation = Math.max(-15, Math.min(15, deviation));
-    const fx = Math.floor(x + deviation);
-    for (let dx = -4; dx <= 4; dx++) {
-      const nx = fx + dx;
-      if (nx >= 0 && nx < size) {
-        heightMap[y][nx] -= 8 + Math.abs(dx);
-      }
-    }
-  }
-  draw();
-}
-
-function volcano() {
-  const cx = Math.floor(size / 2), cy = Math.floor(size / 2);
-  for (let dy = -12; dy <= 12; dy++) {
-    for (let dx = -12; dx <= 12; dx++) {
-      const d = Math.sqrt(dx*dx + dy*dy);
-      if (d < 12) {
-        const nx = cx + dx, ny = cy + dy;
-        if (nx >= 0 && ny >= 0 && nx < size && ny < size) {
-          heightMap[ny][nx] += (12 - d) * 1.5;
+      async setupCamera() {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: 'environment',
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            }
+          });
+          elements.video.srcObject = stream;
+          await new Promise(resolve => {
+            elements.video.onloadedmetadata = () => {
+              elements.video.play();
+              resolve();
+            };
+          });
+        } catch (error) {
+          throw new Error('Не вдалося отримати доступ до камери');
         }
       }
-    }
-  }
-  draw();
-}
 
-// Інші процеси (без змін)
-function rain() {
-  const temp = heightMap.map(row => row.slice());
-  for (let y = 0; y < size - 1; y++) {
-    for (let x = 0; x < size; x++) {
-      if (temp[y][x] > temp[y+1][x] + 0.5) {
-        const diff = (temp[y][x] - temp[y+1][x]) * 0.3;
-        heightMap[y][x] -= diff;
-        heightMap[y+1][x] += diff * 0.7;
+      async initThreeJS() {
+        // Створюємо сцену
+        scene = new THREE.Scene();
+        scene.fog = new THREE.Fog(0x8A2BE2, 5, 15);
+        
+        // Камера
+        camera = new THREE.PerspectiveCamera(
+          60, 
+          window.innerWidth / window.innerHeight, 
+          0.1, 
+          1000
+        );
+        camera.position.set(0, 0, 5);
+        
+        // Рендерер
+        renderer = new THREE.WebGLRenderer({
+          canvas: elements.canvas,
+          alpha: true,
+          antialias: true
+        });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        
+        // Освітлення
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+        scene.add(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.9);
+        directionalLight.position.set(5, 10, 7);
+        scene.add(directionalLight);
+        
+        // Завантажуємо текстури писанок
+        await this.loadPisankaTextures();
+        
+        // Створюємо писанку
+        this.createPisanka();
+      }
+
+      async loadPisankaTextures() {
+        state.pisankaTextures = [];
+        const loader = new THREE.TextureLoader();
+        
+        for (const url of CONFIG.textureUrls) {
+          try {
+            const texture = await new Promise((resolve, reject) => {
+              loader.load(
+                url,
+                (tex) => {
+                  tex.colorSpace = THREE.SRGBColorSpace;
+                  resolve(tex);
+                },
+                undefined,
+                (err) => {
+                  console.warn(`⚠️ Не вдалося завантажити текстуру: ${url}`);
+                  reject(err);
+                }
+              );
+            });
+            state.pisankaTextures.push(texture);
+            console.log(`✅ Завантажено: ${url}`);
+          } catch (error) {
+            console.log(`Створюю запасну текстуру для: ${url}`);
+            const fallbackTexture = this.createFallbackTexture();
+            state.pisankaTextures.push(fallbackTexture);
+          }
+        }
+        
+        if (state.pisankaTextures.length === 0) {
+          console.log('Створюю запасну текстуру');
+          state.pisankaTextures.push(this.createFallbackTexture());
+        }
+        
+        console.log(`📊 Завантажено ${state.pisankaTextures.length} текстур`);
+      }
+
+      createFallbackTexture() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024;
+        canvas.height = 1024;
+        const ctx = canvas.getContext('2d');
+        
+        // Білий фон
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, 1024, 1024);
+        
+        // Українські кольори
+        ctx.fillStyle = '#0057B7';
+        ctx.beginPath();
+        ctx.arc(512, 512, 400, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#FFD700';
+        ctx.beginPath();
+        ctx.arc(512, 512, 350, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Візерунки писанки
+        ctx.strokeStyle = '#FF0000';
+        ctx.lineWidth = 20;
+        
+        // Хрест
+        ctx.beginPath();
+        ctx.moveTo(512, 112);
+        ctx.lineTo(512, 912);
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.moveTo(112, 512);
+        ctx.lineTo(912, 512);
+        ctx.stroke();
+        
+        // Кола
+        ctx.strokeStyle = '#00FF00';
+        ctx.beginPath();
+        ctx.arc(512, 512, 300, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.arc(512, 512, 200, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Текст
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 150px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🥚', 512, 512);
+        
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        return texture;
+      }
+
+      createPisanka() {
+        // Група для писанки
+        state.eggGroup = new THREE.Group();
+        state.eggGroup.visible = false;
+        scene.add(state.eggGroup);
+        
+        // Створюємо яйцеподібну форму (більш реалістичну)
+        const eggGeometry = new THREE.SphereGeometry(1, 64, 64);
+        
+        // Деформуємо сферу в яйце
+        const positions = eggGeometry.attributes.position;
+        for (let i = 0; i < positions.count; i++) {
+          const x = positions.getX(i);
+          const y = positions.getY(i);
+          const z = positions.getZ(i);
+          
+          // Вертикальне розтягнення (більш яйцеподібне)
+          let newY = y;
+          if (y > 0) {
+            newY = y * 1.6; // Верх більше розтягнутий
+          } else {
+            newY = y * 1.3; // Низ менше розтягнутий
+          }
+          
+          // Горизонтальне стиснення
+          let newX = x * 0.65;
+          let newZ = z * 0.65;
+          
+          positions.setX(i, newX);
+          positions.setY(i, newY);
+          positions.setZ(i, newZ);
+        }
+        
+        eggGeometry.computeVertexNormals();
+        eggGeometry.computeTangents();
+        
+        // Створюємо матеріал для писанки - простий, без блиску
+        const eggMaterial = new THREE.MeshLambertMaterial({
+          map: state.pisankaTextures[0],
+          color: 0xffffff,
+          side: THREE.DoubleSide,
+          transparent: false,
+          opacity: 1
+        });
+        
+        // Створюємо меш писанки
+        state.egg = new THREE.Mesh(eggGeometry, eggMaterial);
+        state.egg.scale.set(CONFIG.EGG_SCALE, CONFIG.EGG_SCALE, CONFIG.EGG_SCALE);
+        state.eggGroup.add(state.egg);
+        
+        console.log('✅ Писанка створена (без блиску та підставки)');
+      }
+
+      async initHandTracking() {
+        const vision = await FilesetResolver.forVisionTasks(
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+        );
+        
+        handLandmarker = await HandLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+            delegate: "GPU"
+          },
+          runningMode: "VIDEO",
+          numHands: 1
+        });
+      }
+
+      setupEventListeners() {
+        elements.soundBtn.addEventListener('click', () => this.toggleSound());
+        elements.nextBtn.addEventListener('click', () => this.nextTexture());
+        window.addEventListener('resize', () => this.onWindowResize());
+        
+        // Обертання писанки мишею
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        let scale = 1;
+        
+        elements.canvas.addEventListener('mousedown', (e) => {
+          if (!state.eggGroup.visible) return;
+          isDragging = true;
+          previousMousePosition = { x: e.clientX, y: e.clientY };
+          elements.canvas.style.cursor = 'grabbing';
+        });
+        
+        elements.canvas.addEventListener('mousemove', (e) => {
+          if (!isDragging || !state.eggGroup.visible) return;
+          
+          const deltaX = e.clientX - previousMousePosition.x;
+          const deltaY = e.clientY - previousMousePosition.y;
+          
+          state.eggGroup.rotation.y += deltaX * 0.01;
+          state.eggGroup.rotation.x += deltaY * 0.01;
+          
+          previousMousePosition = { x: e.clientX, y: e.clientY };
+        });
+        
+        elements.canvas.addEventListener('mouseup', () => {
+          isDragging = false;
+          elements.canvas.style.cursor = 'default';
+        });
+        
+        elements.canvas.addEventListener('wheel', (e) => {
+          if (!state.eggGroup.visible) return;
+          e.preventDefault();
+          
+          scale += e.deltaY * -0.001;
+          scale = Math.max(0.5, Math.min(5, scale));
+          
+          state.eggGroup.scale.setScalar(scale * CONFIG.EGG_SCALE);
+        });
+        
+        // Тач жести для мобільних
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let isTouching = false;
+        
+        elements.canvas.addEventListener('touchstart', (e) => {
+          if (!state.eggGroup.visible) return;
+          e.preventDefault();
+          isTouching = true;
+          touchStartX = e.touches[0].clientX;
+          touchStartY = e.touches[0].clientY;
+        });
+        
+        elements.canvas.addEventListener('touchmove', (e) => {
+          if (!isTouching || !state.eggGroup.visible) return;
+          e.preventDefault();
+          
+          const touchX = e.touches[0].clientX;
+          const touchY = e.touches[0].clientY;
+          
+          const deltaX = touchX - touchStartX;
+          const deltaY = touchY - touchStartY;
+          
+          state.eggGroup.rotation.y += deltaX * 0.01;
+          state.eggGroup.rotation.x += deltaY * 0.01;
+          
+          touchStartX = touchX;
+          touchStartY = touchY;
+        });
+        
+        elements.canvas.addEventListener('touchend', () => {
+          isTouching = false;
+        });
+      }
+
+      toggleSound() {
+        if (state.isSoundOn) {
+          bgMusic.pause();
+          elements.soundBtn.classList.add('off');
+          elements.soundBtn.textContent = '🔇 Увімкнути звук';
+        } else {
+          bgMusic.volume = 0.5;
+          bgMusic.play().catch(e => {
+            console.log("Помилка відтворення музики:", e);
+            elements.soundBtn.textContent = '🔇 Помилка звуку';
+          });
+          elements.soundBtn.classList.remove('off');
+          elements.soundBtn.textContent = '🔊 Вимкнути звук';
+        }
+        state.isSoundOn = !state.isSoundOn;
+      }
+
+      nextTexture() {
+        if (!state.egg || state.pisankaTextures.length === 0) {
+          console.log('Немає доступних текстур');
+          return;
+        }
+        
+        state.currentTextureIndex = (state.currentTextureIndex + 1) % state.pisankaTextures.length;
+        state.egg.material.map = state.pisankaTextures[state.currentTextureIndex];
+        state.egg.material.needsUpdate = true;
+        
+        elements.eggStatus.textContent = `🎨 Писанка ${state.currentTextureIndex + 1}/${state.pisankaTextures.length}`;
+        elements.eggStatus.style.display = 'block';
+        
+        setTimeout(() => {
+          elements.eggStatus.textContent = '✨ Писанка обертається';
+        }, 1500);
+      }
+
+      startAnimation() {
+        const animate = () => {
+          state.time += 0.016;
+          this.update();
+          this.render();
+          state.animationId = requestAnimationFrame(animate);
+        };
+        animate();
+      }
+
+      update() {
+        this.detectHand();
+        
+        if (state.landmarks && state.isHandVisible) {
+          this.updatePosition();
+          
+          if (!state.eggGroup.visible) {
+            state.eggGroup.visible = true;
+            elements.eggText.style.display = 'block';
+            elements.eggStatus.style.display = 'block';
+            elements.handIndicator.style.display = 'none';
+          }
+        } else {
+          if (state.eggGroup.visible) {
+            state.eggGroup.visible = false;
+            elements.eggText.style.display = 'none';
+            elements.eggStatus.style.display = 'none';
+          }
+          
+          if (state.handFrames > CONFIG.HAND_NOT_DETECTED_THRESHOLD) {
+            elements.handIndicator.style.display = 'flex';
+          }
+        }
+        
+        // Автоматичне обертання писанки
+        if (state.eggGroup && state.eggGroup.visible) {
+          state.eggGroup.rotation.y += CONFIG.ROTATION_SPEED * 0.01;
+        }
+      }
+
+      detectHand() {
+        if (!handLandmarker || elements.video.readyState < 2) return;
+        
+        try {
+          const results = handLandmarker.detectForVideo(elements.video, performance.now());
+          
+          if (results.landmarks && results.landmarks.length > 0) {
+            state.landmarks = results.landmarks[0];
+            state.isHandVisible = true;
+            state.handFrames = 0;
+          } else {
+            state.landmarks = null;
+            state.isHandVisible = false;
+            state.handFrames++;
+          }
+        } catch (error) {
+          console.error('Помилка розпізнавання руки:', error);
+        }
+      }
+
+      updatePosition() {
+        if (!state.landmarks) return;
+        
+        // Центр долоні
+        const points = [0, 5, 9, 13, 17];
+        let centerX = 0, centerY = 0;
+        for (const idx of points) {
+          centerX += state.landmarks[idx].x;
+          centerY += state.landmarks[idx].y;
+        }
+        centerX /= points.length;
+        centerY /= points.length;
+        
+        // Конвертація координат
+        const x = (centerX - 0.5) * 8;
+        const y = (0.5 - centerY) * 6 + CONFIG.EGG_HEIGHT_OFFSET;
+        
+        // Позиціонуємо писанку
+        if (state.eggGroup) {
+          state.eggGroup.position.x += (x - state.eggGroup.position.x) * CONFIG.SMOOTHING_FACTOR;
+          state.eggGroup.position.y += (y - state.eggGroup.position.y) * CONFIG.SMOOTHING_FACTOR;
+          state.eggGroup.lookAt(camera.position);
+        }
+      }
+
+      render() {
+        if (renderer && scene && camera) {
+          renderer.render(scene, camera);
+        }
+      }
+
+      onWindowResize() {
+        if (camera && renderer) {
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+      }
+
+      hideLoading() {
+        elements.loading.style.display = 'none';
+        elements.video.style.display = 'block';
+        elements.canvas.style.display = 'block';
+        elements.handIndicator.style.display = 'flex';
+      }
+
+      showError(message) {
+        elements.loading.innerHTML = `
+          <div style="color: #ff6b6b; font-size: 28px; margin-bottom: 20px;">😕</div>
+          <div style="font-size: 18px; margin-bottom: 20px;">${message}</div>
+          <button onclick="location.reload()" style="padding: 14px 28px; background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; border: none; border-radius: 25px; cursor: pointer; font-size: 16px;">
+            Спробувати знову
+          </button>
+        `;
+      }
+
+      cleanup() {
+        if (state.animationId) cancelAnimationFrame(state.animationId);
+        if (elements.video.srcObject) {
+          elements.video.srcObject.getTracks().forEach(track => track.stop());
+        }
+        if (handLandmarker) handLandmarker.close();
+        bgMusic.pause();
       }
     }
-  }
-  draw();
-}
 
-function wind() { /* без змін */ for (let y = 0; y < size; y++) for (let x = 1; x < size; x++) { const t = heightMap[y][x] * 0.03; heightMap[y][x-1] += t; heightMap[y][x] -= t; } draw(); }
-function glacier() { /* згладжування */ const temp = heightMap.map(r=>r.slice()); for (let y=1;y<size-1;y++) for (let x=1;x<size-1;x++) { let s=0; for (let dy=-1;dy<=1;dy++) for (let dx=-1;dx<=1;dx++) s += temp[y+dy][x+dx]; heightMap[y][x] = s/9; } draw(); }
-function weathering() { for (let i=0;i<800;i++) { const x=rand(), y=rand(); if (heightMap[y][x]>5) heightMap[y][x]-=0.9; } draw(); }
-function flood() { for (let y=0;y<size;y++) for (let x=0;x<size;x++) if (heightMap[y][x]<5) heightMap[y][x]-=3; draw(); }
-function earthquake() { for (let i=0;i<600;i++) heightMap[rand()][rand()] += (Math.random()-0.5)*12; draw(); }
-function landslide() { for (let y=size-2;y>=0;y--) for (let x=0;x<size;x++) if (heightMap[y][x] > heightMap[y+1][x]+6) { const d=(heightMap[y][x]-heightMap[y+1][x]-6)/2; heightMap[y][x]-=d; heightMap[y+1][x]+=d; } draw(); }
-function eruption() { volcano(); earthquake(); draw(); }
-
-function randomWorld() {
-  uplift(); uplift(); volcano(); volcano(); rain(); rain(); rain(); glacier(); weathering(); fault();
-  draw();
-}
-
-function resetWorld() { init(); }
-function rand() { return Math.floor(Math.random() * size); }
-
-init();
-</script>
-
+    window.addEventListener('DOMContentLoaded', () => {
+      const app = new PisankaARApp();
+      window.addEventListener('beforeunload', () => app.cleanup());
+    });
+  </script>
 </body>
 </html>
