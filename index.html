@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Творець Світів — Формування рельєфу</title>
+<title>Творець Світів — Геологічний симулятор</title>
 
 <style>
 body {
@@ -65,6 +65,25 @@ button:active { transform: scale(0.98); }
 .disaster { background: #8e44ad; color: #fff; }
 .utility  { background: #27ae60; color: #fff; }
 
+#view-mode {
+  display: flex;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+#view-mode button {
+  flex: 1;
+  background: #34495e;
+  padding: 10px;
+  font-size: 15px;
+}
+
+#view-mode button.active {
+  background: #ffd966;
+  color: #000;
+  font-weight: bold;
+}
+
 #brush-size {
   display: flex;
   gap: 10px;
@@ -95,23 +114,29 @@ button:active { transform: scale(0.98); }
 <body>
 
 <h1>🌍 Творець Світів</h1>
-<p>Інтерактивне формування рельєфу (НУШ)</p>
+<p>Інтерактивна геологічна симуляція (НУШ)</p>
 
 <div id="container">
-  <canvas id="world" width="500" height="500"></canvas>
+  <canvas id="world" width="600" height="600"></canvas>
 
   <div class="controls">
-    <h3>🖌️ Режим малювання</h3>
+    <h3>👁️ Режим перегляду</h3>
+    <div id="view-mode">
+      <button class="active" onclick="setViewMode('top')">Карта зверху</button>
+      <button onclick="setViewMode('cross')">Геологічний розріз</button>
+    </div>
+
+    <h3>🖌️ Малювання (тільки в режимі карти)</h3>
     <div id="brush-size">
       <button class="active" onclick="setBrush(1)">Мала</button>
       <button onclick="setBrush(3)">Середня</button>
       <button onclick="setBrush(5)">Велика</button>
     </div>
-    <p style="font-size:13px;margin:8px 0;">✋ Малюй мишею/пальцем<br>↕️ Shift — опускати рельєф</p>
+    <p style="font-size:13px;margin:8px 0;">✋ Малюй мишею/пальцем<br>↕️ Shift — опускати</p>
 
     <h3>🔴 Внутрішні процеси</h3>
     <button class="internal" onclick="uplift()">⬆️ Тектонічне підняття</button>
-    <button class="internal" onclick="fault()">⚡ Розлом</button>
+    <button class="internal" onclick="fault()">⚡ Розлом (зигзаг)</button>
     <button class="internal" onclick="volcano()">🌋 Вулкан</button>
 
     <h3>🔵 Зовнішні процеси</h3>
@@ -120,19 +145,20 @@ button:active { transform: scale(0.98); }
     <button class="external" onclick="glacier()">🧊 Зледеніння</button>
     <button class="external" onclick="weathering()">🪨 Вивітрювання</button>
 
-    <h3>🚨 Режим катастроф</h3>
+    <h3>🚨 Катастрофи</h3>
     <button class="disaster" onclick="flood()">🌊 Повінь</button>
     <button class="disaster" onclick="earthquake()">🌐 Землетрус</button>
     <button class="disaster" onclick="landslide()">⬇️ Зсув</button>
     <button class="disaster" onclick="eruption()">🔥 Виверження</button>
 
     <h3>⚙️ Керування</h3>
-    <button class="utility" onclick="resetWorld()">🔄 Очистити світ</button>
+    <button class="utility" onclick="resetWorld()">🔄 Очистити</button>
     <button class="utility" onclick="randomWorld()">🎲 Випадковий світ</button>
 
     <div id="info">
-      🏔 Форми рельєфу позначаються автоматично<br>
-      💡 Спробуй створити гори, а потім запустити ерозію!
+      🔴 У режимі розрізу видно кору та мантію!<br>
+      🌋 Глибокі розломи оголюють магму<br>
+      💡 Спробуй розлом → вулкан → ерозію
     </div>
   </div>
 </div>
@@ -141,41 +167,42 @@ button:active { transform: scale(0.98); }
 const canvas = document.getElementById("world");
 const ctx = canvas.getContext("2d");
 
-const size = 100; // збільшено для плавності
+const size = 120;
 const cell = canvas.width / size;
 let heightMap = [];
 let brushSize = 1;
 let lowering = false;
+let viewMode = 'top'; // 'top' або 'cross'
 
 function init() {
   heightMap = Array.from({length: size}, () => Array(size).fill(0));
   draw();
 }
 
-function getColor(h) {
-  if (h <= -5) return "#003366";     // глибокий океан
-  if (h <= 0)  return "#006699";     // океан
-  if (h <= 2)  return "#66b2ff";     // мілина
-  if (h <= 8)  return "#b3ff99";     // берег/рівнина
-  if (h <= 18) return "#99cc66";     // низькі пагорби
-  if (h <= 30) return "#b3863d";     // пагорби
-  if (h <= 45) return "#888888";     // гори
-  return "#ffffff";                  // снігові вершини
+function getSurfaceColor(h) {
+  if (h <= -8) return "#001133";
+  if (h <= -2) return "#003366";
+  if (h <= 0)  return "#006699";
+  if (h <= 3)  return "#66b2ff";
+  if (h <= 10) return "#b3ff99";
+  if (h <= 20) return "#99cc66";
+  if (h <= 35) return "#b3863d";
+  if (h <= 50) return "#888888";
+  return "#ffffff";
 }
 
-function draw() {
+function drawTopView() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Малюємо рельєф
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       const h = heightMap[y][x];
-      ctx.fillStyle = getColor(h);
+      ctx.fillStyle = getSurfaceColor(h);
       ctx.fillRect(x * cell, y * cell, cell, cell);
     }
   }
 
-  // Напівпрозора вода над низькими ділянками
+  // Вода
   ctx.fillStyle = "rgba(0, 100, 200, 0.4)";
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
@@ -188,37 +215,116 @@ function draw() {
   drawDynamicLabels();
 }
 
+function drawCrossSection() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const centerY = Math.floor(size / 2);
+  const profile = heightMap[centerY];
+
+  const verticalScale = 6; // збільшене вертикальне масштабування
+  const crustThickness = 15;
+  const baseY = canvas.height * 0.8; // рівень мантії
+
+  // Фон мантії
+  const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  gradient.addColorStop(0, "#ff5500");
+  gradient.addColorStop(0.6, "#ff2200");
+  gradient.addColorStop(1, "#880000");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, baseY - crustThickness * verticalScale, canvas.width, canvas.height);
+
+  // Кора (літосфера)
+  ctx.fillStyle = "#8b7355";
+  ctx.fillRect(0, baseY - crustThickness * verticalScale, canvas.width, crustThickness * verticalScale);
+
+  // Поверхня + рельєф
+  ctx.beginPath();
+  ctx.moveTo(0, baseY);
+  for (let x = 0; x < size; x++) {
+    const h = profile[x];
+    const y = baseY - h * verticalScale;
+    ctx.lineTo(x * cell, y);
+
+    // Магма при глибоких розломах
+    if (h < -15) {
+      ctx.fillStyle = "#ff3300";
+      ctx.fillRect(x * cell - cell/2, y, cell, baseY - y + 50);
+    }
+  }
+  ctx.lineTo(canvas.width, baseY);
+  ctx.lineTo(0, baseY);
+  ctx.closePath();
+
+  // Заливка рельєфу
+  const reliefGrad = ctx.createLinearGradient(0, 0, 0, baseY);
+  reliefGrad.addColorStop(0, "#ffffff");
+  reliefGrad.addColorStop(0.3, "#888888");
+  reliefGrad.addColorStop(0.5, "#b3863d");
+  reliefGrad.addColorStop(0.7, "#99cc66");
+  reliefGrad.addColorStop(1, "#006699");
+  ctx.fillStyle = reliefGrad;
+  ctx.fill();
+
+  // Вода в розрізі
+  ctx.fillStyle = "rgba(0, 120, 255, 0.5)";
+  ctx.fillRect(0, baseY - 5 * verticalScale, canvas.width, 5 * verticalScale);
+
+  // Лінія розрізу (позначка)
+  ctx.strokeStyle = "#ffd966";
+  ctx.lineWidth = 3;
+  ctx.setLineDash([10, 5]);
+  ctx.beginPath();
+  ctx.moveTo(0, baseY);
+  ctx.lineTo(canvas.width, baseY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Підпис
+  ctx.fillStyle = "white";
+  ctx.font = "bold 20px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText("Геологічний розріз по центру", canvas.width/2, 40);
+  ctx.font = "16px Arial";
+  ctx.fillText("← Мантія | Кора | Поверхня →", canvas.width/2, canvas.height - 20);
+}
+
+function draw() {
+  if (viewMode === 'top') {
+    drawTopView();
+  } else {
+    drawCrossSection();
+  }
+}
+
 function drawDynamicLabels() {
   ctx.fillStyle = "rgba(0,0,0,0.6)";
-  ctx.fillRect(4, 4, 140, 92);
+  ctx.fillRect(4, 4, 160, 92);
   ctx.strokeStyle = "#fff";
   ctx.lineWidth = 2;
-  ctx.strokeRect(4, 4, 140, 92);
+  ctx.strokeRect(4, 4, 160, 92);
 
   ctx.fillStyle = "white";
   ctx.font = "bold 14px Arial";
   ctx.textAlign = "left";
 
-  let hasMountains = false, hasPlains = false, hasLowlands = false;
-
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const h = heightMap[y][x];
-      if (h > 30) hasMountains = true;
-      if (h > 0 && h <= 15) hasPlains = true;
-      if (h <= 0) hasLowlands = true;
+  let hasMountains = false, hasPlains = false, hasOcean = false;
+  for (let row of heightMap) {
+    for (let h of row) {
+      if (h > 35) hasMountains = true;
+      if (h > 0 && h <= 20) hasPlains = true;
+      if (h <= 0) hasOcean = true;
     }
   }
 
   let offset = 20;
   if (hasMountains) { ctx.fillText("⛰ Гори", 12, offset); offset += 22; }
   if (hasPlains)    { ctx.fillText("▭ Рівнини", 12, offset); offset += 22; }
-  if (hasLowlands)  { ctx.fillText("∇ Низовини / Океан", 12, offset); }
+  if (hasOcean)     { ctx.fillText("🌊 Океан", 12, offset); }
 }
 
-// Малювання
-canvas.addEventListener("pointerdown", e => { sculpt(e); });
-canvas.addEventListener("pointermove", e => { if (e.buttons === 1 || e.pointerType === "touch") sculpt(e); });
+// Малювання (тільки в режимі карти)
+canvas.addEventListener("pointerdown", e => { if (viewMode === 'top') sculpt(e); });
+canvas.addEventListener("pointermove", e => { if (viewMode === 'top' && (e.buttons === 1 || e.pointerType === "touch")) sculpt(e); });
 
 document.addEventListener("keydown", e => { if (e.key === "Shift") lowering = true; });
 document.addEventListener("keyup", e => { if (e.key === "Shift") lowering = false; });
@@ -229,13 +335,12 @@ function sculpt(e) {
   const y = Math.floor((e.clientY - rect.top) / cell);
   if (x < 0 || y < 0 || x >= size || y >= size) return;
 
-  const strength = lowering ? -1.5 : 1.5;
+  const strength = lowering ? -1.8 : 1.8;
   const r = Math.floor(brushSize / 2);
 
   for (let dy = -r; dy <= r; dy++) {
     for (let dx = -r; dx <= r; dx++) {
-      const nx = x + dx;
-      const ny = y + dy;
+      const nx = x + dx, ny = y + dy;
       if (nx >= 0 && ny >= 0 && nx < size && ny < size) {
         const dist = Math.sqrt(dx*dx + dy*dy);
         if (dist <= r) {
@@ -247,23 +352,37 @@ function sculpt(e) {
   draw();
 }
 
-function setBrush(size) {
-  brushSize = size;
+function setBrush(s) {
+  brushSize = s;
   document.querySelectorAll("#brush-size button").forEach(b => b.classList.remove("active"));
   event.target.classList.add("active");
 }
 
+function setViewMode(mode) {
+  viewMode = mode;
+  document.querySelectorAll("#view-mode button").forEach(b => b.classList.remove("active"));
+  event.target.classList.add("active");
+  draw();
+}
+
 // Процеси
 function uplift() {
-  for (let i = 0; i < 400; i++) heightMap[rand()][rand()] += 3;
+  for (let i = 0; i < 500; i++) heightMap[rand()][rand()] += 3;
   draw();
 }
 
 function fault() {
-  const fx = rand();
+  let x = rand();
+  let deviation = 0;
   for (let y = 0; y < size; y++) {
-    for (let x = Math.max(0, fx-5); x < Math.min(size, fx+5); x++) {
-      heightMap[y][x] -= 6;
+    deviation += (Math.random() - 0.5) * 6;
+    deviation = Math.max(-15, Math.min(15, deviation));
+    const fx = Math.floor(x + deviation);
+    for (let dx = -4; dx <= 4; dx++) {
+      const nx = fx + dx;
+      if (nx >= 0 && nx < size) {
+        heightMap[y][nx] -= 8 + Math.abs(dx);
+      }
     }
   }
   draw();
@@ -271,13 +390,13 @@ function fault() {
 
 function volcano() {
   const cx = Math.floor(size / 2), cy = Math.floor(size / 2);
-  for (let dy = -10; dy <= 10; dy++) {
-    for (let dx = -10; dx <= 10; dx++) {
+  for (let dy = -12; dy <= 12; dy++) {
+    for (let dx = -12; dx <= 12; dx++) {
       const d = Math.sqrt(dx*dx + dy*dy);
-      if (d < 10) {
+      if (d < 12) {
         const nx = cx + dx, ny = cy + dy;
         if (nx >= 0 && ny >= 0 && nx < size && ny < size) {
-          heightMap[ny][nx] += (10 - d) * 1.2;
+          heightMap[ny][nx] += (12 - d) * 1.5;
         }
       }
     }
@@ -285,6 +404,7 @@ function volcano() {
   draw();
 }
 
+// Інші процеси (без змін)
 function rain() {
   const temp = heightMap.map(row => row.slice());
   for (let y = 0; y < size - 1; y++) {
@@ -299,79 +419,16 @@ function rain() {
   draw();
 }
 
-function wind() {
-  for (let y = 0; y < size; y++) {
-    for (let x = 1; x < size; x++) {
-      const transfer = heightMap[y][x] * 0.03;
-      heightMap[y][x-1] += transfer;
-      heightMap[y][x] -= transfer;
-    }
-  }
-  draw();
-}
-
-function glacier() {
-  const temp = heightMap.map(row => row.slice());
-  for (let y = 1; y < size-1; y++) {
-    for (let x = 1; x < size-1; x++) {
-      let sum = 0;
-      for (let dy = -1; dy <= 1; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
-          sum += temp[y+dy][x+dx];
-        }
-      }
-      heightMap[y][x] = sum / 9;
-    }
-  }
-  draw();
-}
-
-function weathering() {
-  for (let i = 0; i < 600; i++) {
-    const x = rand(), y = rand();
-    if (heightMap[y][x] > 5) heightMap[y][x] -= 0.8;
-  }
-  draw();
-}
-
-function flood() {
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      if (heightMap[y][x] < 5) heightMap[y][x] -= 2;
-    }
-  }
-  draw();
-}
-
-function earthquake() {
-  for (let i = 0; i < 500; i++) {
-    const x = rand(), y = rand();
-    heightMap[y][x] += (Math.random() - 0.5) * 10;
-  }
-  draw();
-}
-
-function landslide() {
-  for (let y = size-2; y >= 0; y--) {
-    for (let x = 0; x < size; x++) {
-      if (heightMap[y][x] > heightMap[y+1][x] + 5) {
-        const diff = (heightMap[y][x] - heightMap[y+1][x] - 5) / 2;
-        heightMap[y][x] -= diff;
-        heightMap[y+1][x] += diff;
-      }
-    }
-  }
-  draw();
-}
-
-function eruption() {
-  volcano();
-  earthquake();
-  draw();
-}
+function wind() { /* без змін */ for (let y = 0; y < size; y++) for (let x = 1; x < size; x++) { const t = heightMap[y][x] * 0.03; heightMap[y][x-1] += t; heightMap[y][x] -= t; } draw(); }
+function glacier() { /* згладжування */ const temp = heightMap.map(r=>r.slice()); for (let y=1;y<size-1;y++) for (let x=1;x<size-1;x++) { let s=0; for (let dy=-1;dy<=1;dy++) for (let dx=-1;dx<=1;dx++) s += temp[y+dy][x+dx]; heightMap[y][x] = s/9; } draw(); }
+function weathering() { for (let i=0;i<800;i++) { const x=rand(), y=rand(); if (heightMap[y][x]>5) heightMap[y][x]-=0.9; } draw(); }
+function flood() { for (let y=0;y<size;y++) for (let x=0;x<size;x++) if (heightMap[y][x]<5) heightMap[y][x]-=3; draw(); }
+function earthquake() { for (let i=0;i<600;i++) heightMap[rand()][rand()] += (Math.random()-0.5)*12; draw(); }
+function landslide() { for (let y=size-2;y>=0;y--) for (let x=0;x<size;x++) if (heightMap[y][x] > heightMap[y+1][x]+6) { const d=(heightMap[y][x]-heightMap[y+1][x]-6)/2; heightMap[y][x]-=d; heightMap[y+1][x]+=d; } draw(); }
+function eruption() { volcano(); earthquake(); draw(); }
 
 function randomWorld() {
-  uplift(); uplift(); volcano(); rain(); rain(); rain(); glacier(); weathering();
+  uplift(); uplift(); volcano(); volcano(); rain(); rain(); rain(); glacier(); weathering(); fault();
   draw();
 }
 
